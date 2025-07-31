@@ -1,0 +1,3 @@
+アップロードエラー: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
+アップロードエラー: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
+グラフ作成エラー: Reverse for 'chart_detail' not found. 'chart_detail' is not a valid view function or pattern name.

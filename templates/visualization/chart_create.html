@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}グラフ作成 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>グラフ作成
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="dataset" class="form-label">データセット <span class="text-danger">*</span></label>
+                            <select class="form-select" id="dataset" name="dataset" required>
+                                <option value="">データセットを選択してください</option>
+                                {% for dataset in datasets %}
+                                    <option value="{{ dataset.pk }}">{{ dataset.name }} ({{ dataset.total_rows }} 行)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">グラフタイトル <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="chart_type" class="form-label">グラフタイプ <span class="text-danger">*</span></label>
+                            <select class="form-select" id="chart_type" name="chart_type" required>
+                                <option value="">グラフタイプを選択してください</option>
+                                <option value="line">線グラフ</option>
+                                <option value="bar">棒グラフ</option>
+                                <option value="scatter">散布図</option>
+                                <option value="histogram">ヒストグラム</option>
+                                <option value="box">ボックスプロット</option>
+                                <option value="pie">円グラフ</option>
+                                <option value="area">エリアグラフ</option>
+                                <option value="heatmap">ヒートマップ</option>
+                                <option value="violin">バイオリンプロット</option>
+                                <option value="3d_scatter">3D散布図</option>
+                            </select>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="x_axis_column" class="form-label">X軸カラム <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="x_axis_column" name="x_axis_column" required>
+                                        <option value="">まずデータセットを選択してください</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="y_axis_column" class="form-label">Y軸カラム</label>
+                                    <select class="form-select" id="y_axis_column" name="y_axis_column">
+                                        <option value="">まずデータセットを選択してください</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="z_axis_column" class="form-label">Z軸カラム（3D用）</label>
+                                    <select class="form-select" id="z_axis_column" name="z_axis_column">
+                                        <option value="">なし</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="color_column" class="form-label">色分けカラム</label>
+                                    <select class="form-select" id="color_column" name="color_column">
+                                        <option value="">なし</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="size_column" class="form-label">サイズカラム</label>
+                                    <select class="form-select" id="size_column" name="size_column">
+                                        <option value="">なし</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="color_scheme" class="form-label">カラースキーム</label>
+                            <select class="form-select" id="color_scheme" name="color_scheme">
+                                <option value="viridis">Viridis</option>
+                                <option value="plasma">Plasma</option>
+                                <option value="turbo">Turbo</option>
+                                <option value="blues">Blues</option>
+                                <option value="reds">Reds</option>
+                                <option value="greens">Greens</option>
+                                <option value="categorical">Categorical</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-chart-line me-2"></i>グラフ作成
+                            </button>
+                            <a href="{% url 'visualization:chart_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>グラフ一覧に戻る
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const datasetSelect = document.getElementById('dataset');
+    const xAxisSelect = document.getElementById('x_axis_column');
+    const yAxisSelect = document.getElementById('y_axis_column');
+    const zAxisSelect = document.getElementById('z_axis_column');
+    const colorSelect = document.getElementById('color_column');
+    const sizeSelect = document.getElementById('size_column');
+    
+    // データセット変更時にカラム一覧を取得
+    datasetSelect.addEventListener('change', function() {
+        const datasetId = this.value;
+        
+        if (datasetId) {
+            fetch(`/visualization/api/datasets/${datasetId}/columns/`)
+                .then(response => response.json())
+                .then(data => {
+                    updateColumnSelects(data.columns);
+                })
+                .catch(error => {
+                    console.error('カラム情報取得エラー:', error);
+                });
+        } else {
+            clearColumnSelects();
+        }
+    });
+    
+    function updateColumnSelects(columns) {
+        const selects = [xAxisSelect, yAxisSelect, zAxisSelect, colorSelect, sizeSelect];
+        
+        selects.forEach(select => {
+            // 既存のオプションをクリア（最初のオプションは残す）
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+            
+            // 新しいオプションを追加
+            columns.forEach(column => {
+                const option = document.createElement('option');
+                option.value = column.name;
+                option.textContent = `${column.name} (${column.type})`;
+                select.appendChild(option);
+            });
+        });
+        
+        // 必須でないセレクトの最初のオプションを更新
+        yAxisSelect.children[0].textContent = "選択してください";
+        zAxisSelect.children[0].textContent = "なし";
+        colorSelect.children[0].textContent = "なし";
+        sizeSelect.children[0].textContent = "なし";
+    }
+    
+    function clearColumnSelects() {
+        const selects = [xAxisSelect, yAxisSelect, zAxisSelect, colorSelect, sizeSelect];
+        
+        selects.forEach(select => {
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+        });
+        
+        xAxisSelect.children[0].textContent = "まずデータセットを選択してください";
+        yAxisSelect.children[0].textContent = "まずデータセットを選択してください";
+        zAxisSelect.children[0].textContent = "なし";
+        colorSelect.children[0].textContent = "なし";
+        sizeSelect.children[0].textContent = "なし";
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

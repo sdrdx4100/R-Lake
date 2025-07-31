@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード作成 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-columns me-2"></i>ダッシュボード作成</h1>
+        <a href="{% url 'visualization:chart_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>戻る
+        </a>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-plus me-2"></i>新規ダッシュボード</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">名前</label>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="ダッシュボード名を入力" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">説明 <small class="text-muted">(任意)</small></label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="ダッシュボードの説明を入力"></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>作成
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

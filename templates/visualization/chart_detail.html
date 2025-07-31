@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ chart.title }} - グラフ詳細 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- グラフヘッダー -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>
+                <i class="fas fa-chart-line me-2"></i>{{ chart.title }}
+            </h1>
+            <p class="text-muted mb-0">{{ chart.description|default:"説明なし" }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'visualization:chart_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-1"></i>一覧に戻る
+            </a>
+            <a href="{% url 'visualization:chart_edit' chart.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-1"></i>編集
+            </a>
+            <button type="button" class="btn btn-outline-success" onclick="exportChart()">
+                <i class="fas fa-download me-1"></i>エクスポート
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- メインチャート表示エリア -->
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>グラフ表示
+                    </h5>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="toggleFullscreen()">
+                            <i class="fas fa-expand me-1"></i>フルスクリーン
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="refreshChart()">
+                            <i class="fas fa-sync me-1"></i>更新
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Plotlyチャート表示エリア -->
+                    <div id="chart-container" style="width: 100%; height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- サイドバー - グラフ情報 -->
+        <div class="col-lg-3">
+            <!-- グラフ基本情報 -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>基本情報
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td><strong>タイプ:</strong></td>
+                            <td>
+                                <span class="badge bg-primary">{{ chart.get_chart_type_display }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>データセット:</strong></td>
+                            <td>
+                                <a href="{% url 'ingest:dataset_detail' chart.dataset.pk %}">
+                                    {{ chart.dataset.name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>作成者:</strong></td>
+                            <td>{{ chart.created_by.username }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>作成日:</strong></td>
+                            <td>{{ chart.created_at|date:"Y年m月d日 H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>更新日:</strong></td>
+                            <td>{{ chart.updated_at|date:"Y年m月d日 H:i" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- グラフ設定 -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>グラフ設定
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        {% if chart.x_axis_column %}
+                        <tr>
+                            <td><strong>X軸:</strong></td>
+                            <td>{{ chart.x_axis_column }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if chart.y_axis_column %}
+                        <tr>
+                            <td><strong>Y軸:</strong></td>
+                            <td>{{ chart.y_axis_column }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if chart.color_column %}
+                        <tr>
+                            <td><strong>色分け:</strong></td>
+                            <td>{{ chart.color_column }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if chart.size_column %}
+                        <tr>
+                            <td><strong>サイズ:</strong></td>
+                            <td>{{ chart.size_column }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- 統計情報 -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>統計情報
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-stats">
+                        <p class="text-muted">データを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- モーダル - エクスポート設定 -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">グラフエクスポート</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">フォーマット:</label>
+                    <select class="form-select" id="exportFormat">
+                        <option value="png">PNG (画像)</option>
+                        <option value="jpeg">JPEG (画像)</option>
+                        <option value="pdf">PDF (文書)</option>
+                        <option value="svg">SVG (ベクター)</option>
+                        <option value="html">HTML (インタラクティブ)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">サイズ:</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="exportWidth" value="800" placeholder="幅">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="exportHeight" value="600" placeholder="高さ">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="downloadChart()">ダウンロード</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// グラフ設定をJSONで取得
+const chartConfig = {{ chart.chart_config|safe }};
+const chartData = null; // APIから取得予定
+
+// ページ読み込み時にグラフを描画
+document.addEventListener('DOMContentLoaded', function() {
+    loadChart();
+    loadStatistics();
+});
+
+// グラフ読み込み関数
+async function loadChart() {
+    try {
+        // APIからデータを取得
+        const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/data/`);
+        const data = await response.json();
+        
+        // Plotlyでグラフを描画
+        const layout = {
+            title: {
+                text: '{{ chart.title }}',
+                font: { size: 16 }
+            },
+            xaxis: { title: '{{ chart.x_axis_column|default:"X軸" }}' },
+            yaxis: { title: '{{ chart.y_axis_column|default:"Y軸" }}' },
+            responsive: true,
+            showlegend: true,
+            margin: { t: 50, r: 50, b: 50, l: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+            displaylogo: false
+        };
+        
+        Plotly.newPlot('chart-container', data.traces, layout, config);
+        
+    } catch (error) {
+        console.error('グラフの読み込みエラー:', error);
+        document.getElementById('chart-container').innerHTML = 
+            '<div class="alert alert-danger">グラフの読み込みに失敗しました。</div>';
+    }
+}
+
+// 統計情報読み込み
+async function loadStatistics() {
+    try {
+        const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/stats/`);
+        const stats = await response.json();
+        
+        let statsHtml = '<table class="table table-sm">';
+        for (const [key, value] of Object.entries(stats)) {
+            statsHtml += `<tr><td><strong>${key}:</strong></td><td>${value}</td></tr>`;
+        }
+        statsHtml += '</table>';
+        
+        document.getElementById('chart-stats').innerHTML = statsHtml;
+        
+    } catch (error) {
+        console.error('統計情報の読み込みエラー:', error);
+        document.getElementById('chart-stats').innerHTML = 
+            '<p class="text-muted">統計情報を取得できませんでした。</p>';
+    }
+}
+
+// グラフ更新
+function refreshChart() {
+    document.getElementById('chart-container').innerHTML = 
+        '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</div>';
+    loadChart();
+}
+
+// フルスクリーン表示
+function toggleFullscreen() {
+    const container = document.getElementById('chart-container');
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+            console.error('フルスクリーンに失敗:', err);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// エクスポートモーダル表示
+function exportChart() {
+    const modal = new bootstrap.Modal(document.getElementById('exportModal'));
+    modal.show();
+}
+
+// チャートダウンロード
+function downloadChart() {
+    const format = document.getElementById('exportFormat').value;
+    const width = parseInt(document.getElementById('exportWidth').value);
+    const height = parseInt(document.getElementById('exportHeight').value);
+    
+    const filename = `{{ chart.title|slugify }}.${format}`;
+    
+    if (format === 'html') {
+        // HTMLエクスポート
+        Plotly.offline.plot(document.getElementById('chart-container'), {
+            filename: filename,
+            height: height,
+            width: width
+        });
+    } else {
+        // 画像エクスポート
+        Plotly.downloadImage('chart-container', {
+            format: format,
+            width: width,
+            height: height,
+            filename: filename
+        });
+    }
+    
+    // モーダルを閉じる
+    const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+    modal.hide();
+}
+
+// キーボードショートカット
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey) {
+        switch(e.key) {
+            case 'r':
+                e.preventDefault();
+                refreshChart();
+                break;
+            case 'e':
+                e.preventDefault();
+                exportChart();
+                break;
+            case 'f':
+                e.preventDefault();
+                toggleFullscreen();
+                break;
+        }
+    }
+});
+</script>
+
+<style>
+/* グラフコンテナのスタイル調整 */
+#chart-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-white);
+}
+
+/* フルスクリーン時のスタイル */
+#chart-container:fullscreen {
+    background-color: white;
+    padding: 20px;
+}
+
+/* 統計テーブルのスタイル */
+#chart-stats table {
+    font-size: 0.9rem;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .btn-group .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    #chart-container {
+        height: 400px !important;
+    }
+}
+</style>
+{% endblock %}

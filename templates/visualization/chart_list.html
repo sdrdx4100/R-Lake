@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}グラフ一覧 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-chart-line me-2"></i>グラフ一覧
+        </h1>
+        <a href="{% url 'visualization:chart_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>新しいグラフ
+        </a>
+    </div>
+
+    {% if charts %}
+        <div class="row">
+            {% for chart in charts %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">{{ chart.title }}</h5>
+                            <span class="badge bg-info">{{ chart.get_chart_type_display }}</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <strong>データセット:</strong> {{ chart.dataset.name }}<br>
+                                <strong>X軸:</strong> {{ chart.x_axis_column }}<br>
+                                <strong>Y軸:</strong> {{ chart.y_axis_column }}
+                            </p>
+                            
+                            <div class="text-center">
+                                <small class="text-muted d-block">作成日</small>
+                                <strong>{{ chart.created_at|date:"Y/m/d H:i" }}</strong>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'visualization:chart_detail' chart.pk %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye me-1"></i>詳細表示
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav aria-label="ページネーション">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1" aria-label="最初">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="前">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="次">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="最後">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">グラフがありません</h3>
+            <p class="text-muted">最初のグラフを作成して始めましょう。</p>
+            <a href="{% url 'visualization:chart_create' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>グラフ作成
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

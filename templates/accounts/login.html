@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ログイン - R-Lake{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card card">
+        <div class="login-header">
+            <h3>
+                <i class="fas fa-database me-2"></i>R-Lake システム
+            </h3>
+            <div class="subtitle">車両データ分析プラットフォーム</div>
+        </div>
+        
+        <div class="login-body">
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <strong>ログインエラー:</strong>
+                    <ul class="mb-0 mt-2">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% endif %}
+                <div class="mb-3">
+                    <label for="id_username" class="form-label">
+                        <i class="fas fa-user me-1"></i>ユーザー名
+                    </label>
+                    <input type="text" name="username" class="form-control" 
+                           id="id_username" required autocomplete="username" 
+                           value="{{ form.username.value|default:'' }}">
+                </div>
+
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">
+                        <i class="fas fa-lock me-1"></i>パスワード
+                    </label>
+                    <input type="password" name="password" class="form-control" 
+                           id="id_password" required autocomplete="current-password">
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>ログイン
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="login-footer">
+            <div>
+                <i class="fas fa-shield-alt me-1"></i>
+                セキュアなビジネスシステム
+            </div>
+            <small>© 2025 R-Lake Datalake Platform</small>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+}
+
+.login-card {
+    max-width: 420px;
+    width: 100%;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+.login-header {
+    background: linear-gradient(to bottom, var(--bg-white), var(--bg-light));
+    border-bottom: 2px solid var(--primary-color);
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 6px 6px 0 0;
+}
+
+.login-header h3 {
+    color: var(--primary-color);
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.login-header .subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.login-body {
+    padding: 2rem;
+    background-color: var(--bg-white);
+}
+
+.login-footer {
+    background-color: var(--bg-light);
+    text-align: center;
+    padding: 1rem;
+    border-top: 1px solid var(--border-light);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-radius: 0 0 6px 6px;
+}
+
+.login-body .form-control {
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
+.login-body .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(44, 90, 160, 0.15);
+}
+
+.login-body .btn-primary {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% load static %}
+{% load rlake_extras %}
+
+{% block title %}データセット詳細: {{ dataset.name }} - R-Lake{% endblock %}
+
+{% block extra_css %}
+<style>
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.schema-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.data-preview {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.quality-score {
+    font-size: 3rem;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>
+                <i class="fas fa-database me-2"></i>{{ dataset.name }}
+            </h1>
+            <p class="text-muted">{{ dataset.description|default:"説明なし" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'visualization:chart_create' %}?dataset={{ dataset.pk }}" 
+               class="btn btn-success me-2">
+                <i class="fas fa-chart-line me-1"></i>グラフ作成
+            </a>
+            <a href="{% url 'visualization:analysis_correlation' dataset.pk %}" 
+               class="btn btn-info me-2">
+                <i class="fas fa-analytics me-1"></i>相関分析
+            </a>
+            <a href="{% url 'ingest:dataset_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+            </a>
+        </div>
+    </div>
+
+    <!-- メトリクス -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value">{{ dataset.total_rows|default:0 }}</div>
+                <div>総レコード数</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value">{{ schema_fields.count }}</div>
+                <div>カラム数</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value">{{ dataset.created_at|date:"Y/m/d" }}</div>
+                <div>作成日</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                {% if quality_report %}
+                    <div class="quality-score">
+                        {{ quality_report.valid_records|div:quality_report.total_records|mul:100|floatformat:1 }}%
+                    </div>
+                    <div>データ品質</div>
+                {% else %}
+                    <div class="metric-value">未算出</div>
+                    <div>データ品質</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 車両メタデータ -->
+    {% if dataset.vehicle_model or dataset.measurement_location %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-car me-2"></i>車両メタデータ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if dataset.vehicle_model %}
+                        <div class="col-md-4">
+                            <strong>車両モデル:</strong><br>
+                            {{ dataset.vehicle_model }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.measurement_location %}
+                        <div class="col-md-4">
+                            <strong>計測場所:</strong><br>
+                            {{ dataset.measurement_location }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.measurement_date %}
+                        <div class="col-md-4">
+                            <strong>計測日時:</strong><br>
+                            {{ dataset.measurement_date|date:"Y年m月d日 H:i" }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- スキーマ情報 -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>データスキーマ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if schema_fields %}
+                        {% for field in schema_fields %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                            <div>
+                                <strong>{{ field.column_name }}</strong>
+                                <span class="badge bg-secondary schema-badge ms-2">{{ field.get_column_type_display }}</span>
+                            </div>
+                            <div class="text-end">
+                                {% if field.unique_count %}
+                                    <small class="text-muted">ユニーク値: {{ field.unique_count }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">スキーマ情報がありません。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- データプレビュー -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-eye me-2"></i>データプレビュー（最初の10行）
+                    </h5>
+                </div>
+                <div class="card-body data-preview">
+                    {% if sample_records %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>行番号</th>
+                                        {% for field in schema_fields %}
+                                            <th>{{ field.column_name }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in sample_records %}
+                                    <tr>
+                                        <td>{{ record.row_number }}</td>
+                                        {% for field in schema_fields %}
+                                            <td>{{ record.data|get_item:field.column_name|default:"-" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">データがありません。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 品質レポート -->
+    {% if quality_report %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>データ品質レポート
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6>総レコード数</h6>
+                                <span class="badge bg-primary fs-6">{{ quality_report.total_records }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6>有効レコード数</h6>
+                                <span class="badge bg-success fs-6">{{ quality_report.valid_records }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6>無効レコード数</h6>
+                                <span class="badge bg-danger fs-6">{{ quality_report.invalid_records }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6>重複レコード数</h6>
+                                <span class="badge bg-warning fs-6">{{ quality_report.duplicate_records }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+// カスタムテンプレートフィルター（get_item）のシミュレーション
+document.addEventListener('DOMContentLoaded', function() {
+    // 将来的にAJAXでデータを動的に読み込む機能を追加予定
+});
+</script>
+{% endblock %}
+{% endblock %}

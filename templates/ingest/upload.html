@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSV アップロード - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="card-title mb-0">
+                        <i class="fas fa-upload me-2"></i>CSV データアップロード
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        車両計測データのCSVファイルをアップロードして、新しいデータセットを作成します。
+                        どのような構造のCSVでも自動的に解析され、適切なスキーマが生成されます。
+                    </p>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">CSVファイル <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx,.xls" required>
+                            <div class="form-text">サポート形式: CSV, Excel (.xlsx, .xls)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="dataset_name" class="form-label">データセット名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="dataset_name" name="dataset_name" required>
+                            <div class="form-text">データセットを識別するための名前を入力してください</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">説明</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <div class="form-text">データセットの詳細や用途を記述してください（任意）</div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h5>車両メタデータ（任意）</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vehicle_model" class="form-label">車両モデル</label>
+                                    <input type="text" class="form-control" id="vehicle_model" name="vehicle_model">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="measurement_location" class="form-label">計測場所</label>
+                                    <input type="text" class="form-control" id="measurement_location" name="measurement_location">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-upload me-2"></i>アップロード & 処理開始
+                            </button>
+                            <a href="{% url 'ingest:dataset_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>データセット一覧に戻る
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>アップロードガイド
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>サポート機能</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>動的スキーマ検出</li>
+                                <li><i class="fas fa-check text-success me-2"></i>自動データ型推論</li>
+                                <li><i class="fas fa-check text-success me-2"></i>エンコーディング自動判定</li>
+                                <li><i class="fas fa-check text-success me-2"></i>区切り文字自動判定</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>データ品質管理</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>重複データ検出</li>
+                                <li><i class="fas fa-check text-success me-2"></i>欠損値レポート</li>
+                                <li><i class="fas fa-check text-success me-2"></i>統計情報自動生成</li>
+                                <li><i class="fas fa-check text-success me-2"></i>品質スコア算出</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

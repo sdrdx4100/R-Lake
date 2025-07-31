@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}グラフ編集 - {{ chart.title }} - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-edit me-2"></i>グラフ編集
+        </h1>
+        <div class="btn-group">
+            <a href="{% url 'visualization:chart_detail' chart.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>詳細に戻る
+            </a>
+            <button type="button" class="btn btn-outline-danger" onclick="deleteChart()">
+                <i class="fas fa-trash me-1"></i>削除
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 編集フォーム -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>グラフ設定
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="chartForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">タイトル</label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   value="{{ chart.title }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">説明</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="3">{{ chart.description }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="chart_type" class="form-label">グラフタイプ</label>
+                            <select class="form-select" id="chart_type" name="chart_type">
+                                <option value="line" {% if chart.chart_type == 'line' %}selected{% endif %}>線グラフ</option>
+                                <option value="bar" {% if chart.chart_type == 'bar' %}selected{% endif %}>棒グラフ</option>
+                                <option value="scatter" {% if chart.chart_type == 'scatter' %}selected{% endif %}>散布図</option>
+                                <option value="histogram" {% if chart.chart_type == 'histogram' %}selected{% endif %}>ヒストグラム</option>
+                                <option value="box" {% if chart.chart_type == 'box' %}selected{% endif %}>箱ひげ図</option>
+                                <option value="heatmap" {% if chart.chart_type == 'heatmap' %}selected{% endif %}>ヒートマップ</option>
+                                <option value="pie" {% if chart.chart_type == 'pie' %}selected{% endif %}>円グラフ</option>
+                                <option value="3d_scatter" {% if chart.chart_type == '3d_scatter' %}selected{% endif %}>3D散布図</option>
+                                <option value="surface" {% if chart.chart_type == 'surface' %}selected{% endif %}>3D表面</option>
+                                <option value="radar" {% if chart.chart_type == 'radar' %}selected{% endif %}>レーダーチャート</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="x_axis" class="form-label">X軸</label>
+                            <select class="form-select" id="x_axis" name="x_axis">
+                                <option value="">選択してください</option>
+                                <!-- データセットのカラムをJavaScriptで動的に追加 -->
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="y_axis" class="form-label">Y軸</label>
+                            <select class="form-select" id="y_axis" name="y_axis">
+                                <option value="">選択してください</option>
+                                <!-- データセットのカラムをJavaScriptで動的に追加 -->
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="color_column" class="form-label">色分けカラム（オプション）</label>
+                            <select class="form-select" id="color_column" name="color_column">
+                                <option value="">なし</option>
+                                <!-- データセットのカラムをJavaScriptで動的に追加 -->
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="size_column" class="form-label">サイズカラム（オプション）</label>
+                            <select class="form-select" id="size_column" name="size_column">
+                                <option value="">なし</option>
+                                <!-- データセットのカラムをJavaScriptで動的に追加 -->
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" onclick="updateChart()">
+                                <i class="fas fa-sync me-2"></i>プレビュー更新
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="saveChart()">
+                                <i class="fas fa-save me-2"></i>保存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- プレビューエリア -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>プレビュー
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="preview-container" style="width: 100%; height: 500px;">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-chart-line" style="font-size: 3rem;"></i>
+                            <p class="mt-3">設定を変更してプレビューを更新してください</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>グラフ削除の確認
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>本当にこのグラフを削除しますか？</p>
+                <div class="alert alert-warning">
+                    <strong>注意:</strong> この操作は元に戻せません。
+                </div>
+                <p><strong>グラフ名:</strong> {{ chart.title }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash me-2"></i>削除する
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// データセット情報
+const datasetId = {{ chart.dataset.pk }};
+let datasetColumns = [];
+
+// ページ読み込み時の初期化
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatasetColumns();
+    loadCurrentChart();
+});
+
+// データセットのカラム情報を読み込み
+async function loadDatasetColumns() {
+    try {
+        const response = await fetch(`/visualization/api/datasets/${datasetId}/columns/`);
+        const schema = await response.json();
+        
+        datasetColumns = schema.columns || [];
+        populateColumnSelects();
+        
+    } catch (error) {
+        console.error('カラム情報の読み込みエラー:', error);
+    }
+}
+
+// カラム選択肢を設定
+function populateColumnSelects() {
+    const selects = ['x_axis', 'y_axis', 'color_column', 'size_column'];
+    
+    selects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        const currentValue = select.value;
+        
+        // 既存のオプションをクリア（最初のオプションは残す）
+        while (select.children.length > 1) {
+            select.removeChild(select.lastChild);
+        }
+        
+        // カラムオプションを追加
+        datasetColumns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column.name;
+            option.textContent = `${column.name} (${column.type})`;
+            if (column.name === currentValue) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    });
+}
+
+// 現在のグラフ設定を読み込み
+function loadCurrentChart() {
+    // 現在の値を設定
+    document.getElementById('x_axis').value = '{{ chart.x_axis_column|default:"" }}';
+    document.getElementById('y_axis').value = '{{ chart.y_axis_column|default:"" }}';
+    document.getElementById('color_column').value = '{{ chart.color_column|default:"" }}';
+    document.getElementById('size_column').value = '{{ chart.size_column|default:"" }}';
+    
+    // 初期プレビューを表示
+    updateChart();
+}
+
+// チャートプレビュー更新
+async function updateChart() {
+    const formData = new FormData(document.getElementById('chartForm'));
+    const previewContainer = document.getElementById('preview-container');
+    
+    previewContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 生成中...</div>';
+    
+    try {
+        const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/preview/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Plotlyでプレビューを描画
+            const layout = {
+                title: { text: formData.get('title') },
+                xaxis: { title: formData.get('x_axis') },
+                yaxis: { title: formData.get('y_axis') },
+                responsive: true,
+                margin: { t: 50, r: 50, b: 50, l: 50 }
+            };
+            
+            Plotly.newPlot('preview-container', result.traces, layout, {
+                responsive: true,
+                displayModeBar: false
+            });
+        } else {
+            previewContainer.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+        }
+        
+    } catch (error) {
+        console.error('プレビュー更新エラー:', error);
+        previewContainer.innerHTML = '<div class="alert alert-danger">プレビューの生成に失敗しました。</div>';
+    }
+}
+
+// チャート保存
+async function saveChart() {
+    const formData = new FormData(document.getElementById('chartForm'));
+    
+    try {
+        const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/`, {
+            method: 'PUT',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 成功メッセージを表示
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show';
+            alert.innerHTML = `
+                <i class="fas fa-check me-2"></i>グラフが正常に保存されました。
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+            
+            // 3秒後に詳細ページにリダイレクト
+            setTimeout(() => {
+                window.location.href = `/visualization/charts/{{ chart.pk }}/`;
+            }, 3000);
+        } else {
+            throw new Error(result.error || '保存に失敗しました');
+        }
+        
+    } catch (error) {
+        console.error('保存エラー:', error);
+        alert(`保存に失敗しました: ${error.message}`);
+    }
+}
+
+// グラフ削除
+function deleteChart() {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+function confirmDelete() {
+    fetch(`/visualization/api/charts/{{ chart.pk }}/`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            window.location.href = '/visualization/';
+        } else {
+            alert('削除に失敗しました');
+        }
+    })
+    .catch(error => {
+        console.error('削除エラー:', error);
+        alert('削除に失敗しました');
+    });
+}
+
+// フォーム変更時の自動プレビュー更新
+document.getElementById('chartForm').addEventListener('change', function() {
+    updateChart();
+});
+</script>
+
+<style>
+/* プレビューコンテナのスタイル */
+#preview-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* フォームスタイル調整 */
+.form-select, .form-control {
+    font-size: 0.9rem;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    #preview-container {
+        height: 300px !important;
+    }
+}
+</style>
+{% endblock %}
