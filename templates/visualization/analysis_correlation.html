@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load static %}
+{% load rlake_extras %}
 {% block title %}相関分析 - R-Lake{% endblock %}
 
 {% block content %}
@@ -65,7 +67,7 @@
                                 <tr>
                                     <th>{{ row_col }}</th>
                                     {% for col in analysis_result.columns_analyzed %}
-                                        <td>{{ analysis_result.correlation_matrix[row_col][col]|floatformat:2 }}</td>
+                                        <td>{{ analysis_result.correlation_matrix|get_item:row_col|get_item:col|floatformat:2 }}</td>
                                     {% endfor %}
                                 </tr>
                             {% endfor %}
