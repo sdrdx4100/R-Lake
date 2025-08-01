@@ -61,16 +61,16 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="x_axis" class="form-label">X軸</label>
-                            <select class="form-select" id="x_axis" name="x_axis">
+                            <label for="x_axis_column" class="form-label">X軸</label>
+                            <select class="form-select" id="x_axis_column" name="x_axis_column">
                                 <option value="">選択してください</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="y_axis" class="form-label">Y軸</label>
-                            <select class="form-select" id="y_axis" name="y_axis">
+                            <label for="y_axis_column" class="form-label">Y軸</label>
+                            <select class="form-select" id="y_axis_column" name="y_axis_column">
                                 <option value="">選択してください</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
@@ -182,7 +182,7 @@ async function loadDatasetColumns() {
 
 // カラム選択肢を設定
 function populateColumnSelects() {
-    const selects = ['x_axis', 'y_axis', 'color_column', 'size_column'];
+    const selects = ['x_axis_column', 'y_axis_column', 'color_column', 'size_column'];
     
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
@@ -209,8 +209,8 @@ function populateColumnSelects() {
 // 現在のグラフ設定を読み込み
 function loadCurrentChart() {
     // 現在の値を設定
-    document.getElementById('x_axis').value = '{{ chart.x_axis_column|default:"" }}';
-    document.getElementById('y_axis').value = '{{ chart.y_axis_column|default:"" }}';
+    document.getElementById('x_axis_column').value = '{{ chart.x_axis_column|default:"" }}';
+    document.getElementById('y_axis_column').value = '{{ chart.y_axis_column|default:"" }}';
     document.getElementById('color_column').value = '{{ chart.color_column|default:"" }}';
     document.getElementById('size_column').value = '{{ chart.size_column|default:"" }}';
     
@@ -240,8 +240,8 @@ async function updateChart() {
             // Plotlyでプレビューを描画
             const layout = {
                 title: { text: formData.get('title') },
-                xaxis: { title: formData.get('x_axis') },
-                yaxis: { title: formData.get('y_axis') },
+                xaxis: { title: formData.get('x_axis_column') },
+                yaxis: { title: formData.get('y_axis_column') },
                 responsive: true,
                 margin: { t: 50, r: 50, b: 50, l: 50 }
             };
