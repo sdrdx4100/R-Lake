@@ -107,6 +107,21 @@
                                 <option value="categorical">Categorical</option>
                             </select>
                         </div>
+
+                        <div class="mb-3 text-center">
+                            <button type="button" class="btn btn-outline-primary" id="previewButton">
+                                <i class="fas fa-eye me-2"></i>プレビュー
+                            </button>
+                        </div>
+
+                        <div class="mb-3">
+                            <div id="preview-container" style="width: 100%; height: 400px;">
+                                <div class="text-muted text-center">
+                                    <i class="fas fa-chart-line" style="font-size:2rem;"></i>
+                                    <p class="mt-2">プレビューはここに表示されます</p>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
@@ -132,7 +147,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const zAxisSelect = document.getElementById('z_axis_column');
     const colorSelect = document.getElementById('color_column');
     const sizeSelect = document.getElementById('size_column');
-    
+    const previewButton = document.getElementById('previewButton');
+    const previewContainer = document.getElementById('preview-container');
+
     // データセット変更時にカラム一覧を取得
     datasetSelect.addEventListener('change', function() {
         const datasetId = this.value;
@@ -191,6 +208,41 @@ document.addEventListener('DOMContentLoaded', function() {
         colorSelect.children[0].textContent = "なし";
         sizeSelect.children[0].textContent = "なし";
     }
+
+    async function previewChart() {
+        const form = document.querySelector('form');
+        const formData = new FormData(form);
+        previewContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 生成中...</div>';
+
+        try {
+            const response = await fetch('/visualization/api/charts/preview/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+            const result = await response.json();
+            if (result.success) {
+                const layout = {
+                    title: { text: formData.get('title') },
+                    xaxis: { title: formData.get('x_axis_column') },
+                    yaxis: { title: formData.get('y_axis_column') },
+                    responsive: true,
+                    margin: { t: 50, r: 50, b: 50, l: 50 }
+                };
+                Plotly.newPlot('preview-container', result.traces, layout, {responsive: true, displayModeBar: false});
+            } else {
+                previewContainer.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+            }
+        } catch (error) {
+            console.error('プレビュー生成エラー:', error);
+            previewContainer.innerHTML = '<div class="alert alert-danger">プレビューの生成に失敗しました。</div>';
+        }
+    }
+
+    previewButton.addEventListener('click', previewChart);
+    document.querySelector('form').addEventListener('change', previewChart);
 });
 </script>
 {% endblock %}
