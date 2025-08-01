@@ -56,7 +56,8 @@ def chart_create(request):
             )
 
             messages.success(request, f'グラフ "{title}" が作成されました。')
-            return redirect("chart_detail", pk=chart.pk)
+            # Use namespaced URL to avoid reverse errors
+            return redirect("visualization:chart_detail", pk=chart.pk)
 
         except Exception as e:
             logger.error(f"グラフ作成エラー: {e}")
