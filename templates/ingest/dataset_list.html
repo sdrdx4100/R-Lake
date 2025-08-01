@@ -63,7 +63,11 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    $('#datasetsTable').DataTable({
+    var table = $('#datasetsTable');
+    if ($.fn.dataTable.isDataTable(table)) {
+        table.DataTable().clear().destroy();
+    }
+    table.DataTable({
         language: {
             url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
         }
