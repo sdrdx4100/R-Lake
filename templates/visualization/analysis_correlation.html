@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}相関分析 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-project-diagram me-2"></i>相関分析: {{ dataset.name }}
+        </h1>
+        <a href="{% url 'ingest:dataset_detail' dataset.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>データセットに戻る
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>カラム選択</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    {% for field in numeric_columns %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="{{ field.column_name }}" name="columns" id="col-{{ field.column_name }}" {% if selected_columns and field.column_name in selected_columns %}checked{% endif %}>
+                                <label class="form-check-label" for="col-{{ field.column_name }}">
+                                    {{ field.column_name }}
+                                </label>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="col-12 text-muted">数値カラムがありません。</div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-1"></i>分析実行
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if analysis_result %}
+        {% if analysis_result.error %}
+            <div class="alert alert-danger">{{ analysis_result.error }}</div>
+        {% else %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>相関係数マトリクス</h5>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                {% for col in analysis_result.columns_analyzed %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row_col in analysis_result.columns_analyzed %}
+                                <tr>
+                                    <th>{{ row_col }}</th>
+                                    {% for col in analysis_result.columns_analyzed %}
+                                        <td>{{ analysis_result.correlation_matrix[row_col][col]|floatformat:2 }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if analysis_result.strong_correlations %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>強い相関ペア</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            {% for pair in analysis_result.strong_correlations %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ pair.column1 }} &amp; {{ pair.column2 }}
+                                    <span class="badge bg-info">{{ pair.correlation|floatformat:2 }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
