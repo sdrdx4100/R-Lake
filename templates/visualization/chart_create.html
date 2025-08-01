@@ -49,11 +49,15 @@
                             </select>
                         </div>
                         
+                        <div class="mb-3">
+                            <input type="text" id="columnFilter" class="form-control" placeholder="カラム名フィルター">
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="x_axis_column" class="form-label">X軸カラム <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="x_axis_column" name="x_axis_column" required>
+                                    <select class="form-select column-select" id="x_axis_column" name="x_axis_column" required>
                                         <option value="">まずデータセットを選択してください</option>
                                     </select>
                                 </div>
@@ -61,7 +65,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="y_axis_column" class="form-label">Y軸カラム</label>
-                                    <select class="form-select" id="y_axis_column" name="y_axis_column">
+                                    <select class="form-select column-select" id="y_axis_column" name="y_axis_column">
                                         <option value="">まずデータセットを選択してください</option>
                                     </select>
                                 </div>
@@ -72,7 +76,7 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="z_axis_column" class="form-label">Z軸カラム（3D用）</label>
-                                    <select class="form-select" id="z_axis_column" name="z_axis_column">
+                                    <select class="form-select column-select" id="z_axis_column" name="z_axis_column">
                                         <option value="">なし</option>
                                     </select>
                                 </div>
@@ -80,7 +84,7 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="color_column" class="form-label">色分けカラム</label>
-                                    <select class="form-select" id="color_column" name="color_column">
+                                    <select class="form-select column-select" id="color_column" name="color_column">
                                         <option value="">なし</option>
                                     </select>
                                 </div>
@@ -88,7 +92,7 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="size_column" class="form-label">サイズカラム</label>
-                                    <select class="form-select" id="size_column" name="size_column">
+                                    <select class="form-select column-select" id="size_column" name="size_column">
                                         <option value="">なし</option>
                                     </select>
                                 </div>
@@ -147,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const zAxisSelect = document.getElementById('z_axis_column');
     const colorSelect = document.getElementById('color_column');
     const sizeSelect = document.getElementById('size_column');
+    const columnFilter = document.getElementById('columnFilter');
     const previewButton = document.getElementById('previewButton');
     const previewContainer = document.getElementById('preview-container');
 
@@ -167,6 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
             clearColumnSelects();
         }
     });
+
+    // URLのクエリからデータセットを事前選択
+    const params = new URLSearchParams(window.location.search);
+    const preselect = params.get('dataset');
+    if (preselect) {
+        datasetSelect.value = preselect;
+        datasetSelect.dispatchEvent(new Event('change'));
+    }
     
     function updateColumnSelects(columns) {
         const selects = [xAxisSelect, yAxisSelect, zAxisSelect, colorSelect, sizeSelect];
@@ -191,6 +204,9 @@ document.addEventListener('DOMContentLoaded', function() {
         zAxisSelect.children[0].textContent = "なし";
         colorSelect.children[0].textContent = "なし";
         sizeSelect.children[0].textContent = "なし";
+
+        // フィルタリング初期化
+        filterColumnOptions();
     }
     
     function clearColumnSelects() {
@@ -208,6 +224,15 @@ document.addEventListener('DOMContentLoaded', function() {
         colorSelect.children[0].textContent = "なし";
         sizeSelect.children[0].textContent = "なし";
     }
+
+    function filterColumnOptions() {
+        const filter = columnFilter.value.toLowerCase();
+        document.querySelectorAll('.column-select option').forEach(option => {
+            if (!option.value) return;
+            option.style.display = option.textContent.toLowerCase().includes(filter) ? '' : 'none';
+        });
+    }
+    columnFilter.addEventListener('input', filterColumnOptions);
 
     async function previewChart() {
         const form = document.querySelector('form');
@@ -247,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <style>
 #preview-container {
-    overflow: auto;
+    overflow: hidden;
 }
 </style>
 {% endblock %}
