@@ -62,7 +62,7 @@ def upload_csv(request):
                         f'データセット "{dataset_name}" が正常に作成されました。'
                         f'({result["processed_rows"]}行処理済み)'
                     )
-                    return redirect('dataset_detail', pk=dataset.pk)
+                    return redirect('ingest:dataset_detail', pk=dataset.pk)
                 else:
                     messages.error(request, 'CSV処理中にエラーが発生しました。')
                     return render(request, 'ingest/upload.html')
