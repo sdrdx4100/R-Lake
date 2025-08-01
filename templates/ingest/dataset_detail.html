@@ -31,6 +31,11 @@
     overflow-y: auto;
 }
 
+.schema-preview {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
 .quality-score {
     font-size: 3rem;
     font-weight: bold;
@@ -108,7 +113,7 @@
                         <i class="fas fa-car me-2"></i>車両メタデータ
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body schema-preview">
                     <div class="row">
                         {% if dataset.vehicle_model %}
                         <div class="col-md-4">

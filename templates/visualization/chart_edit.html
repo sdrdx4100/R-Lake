@@ -59,34 +59,38 @@
                                 <option value="radar" {% if chart.chart_type == 'radar' %}selected{% endif %}>レーダーチャート</option>
                             </select>
                         </div>
-                        
+
+                        <div class="mb-3">
+                            <input type="text" id="columnFilter" class="form-control" placeholder="カラム名フィルター">
+                        </div>
+
                         <div class="mb-3">
                             <label for="x_axis_column" class="form-label">X軸</label>
-                            <select class="form-select" id="x_axis_column" name="x_axis_column">
+                            <select class="form-select column-select" id="x_axis_column" name="x_axis_column">
                                 <option value="">選択してください</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="y_axis_column" class="form-label">Y軸</label>
-                            <select class="form-select" id="y_axis_column" name="y_axis_column">
+                            <select class="form-select column-select" id="y_axis_column" name="y_axis_column">
                                 <option value="">選択してください</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="color_column" class="form-label">色分けカラム（オプション）</label>
-                            <select class="form-select" id="color_column" name="color_column">
+                            <select class="form-select column-select" id="color_column" name="color_column">
                                 <option value="">なし</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="size_column" class="form-label">サイズカラム（オプション）</label>
-                            <select class="form-select" id="size_column" name="size_column">
+                            <select class="form-select column-select" id="size_column" name="size_column">
                                 <option value="">なし</option>
                                 <!-- データセットのカラムをJavaScriptで動的に追加 -->
                             </select>
@@ -166,6 +170,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCurrentChart();
 });
 
+// フィルタ入力要素
+const columnFilter = document.getElementById('columnFilter');
+
 // データセットのカラム情報を読み込み
 async function loadDatasetColumns() {
     try {
@@ -204,7 +211,19 @@ function populateColumnSelects() {
             select.appendChild(option);
         });
     });
+
+    filterColumnOptions();
 }
+
+function filterColumnOptions() {
+    const filter = columnFilter.value.toLowerCase();
+    document.querySelectorAll('.column-select option').forEach(option => {
+        if (!option.value) return;
+        option.style.display = option.textContent.toLowerCase().includes(filter) ? '' : 'none';
+    });
+}
+
+columnFilter.addEventListener('input', filterColumnOptions);
 
 // 現在のグラフ設定を読み込み
 function loadCurrentChart() {
@@ -341,7 +360,7 @@ document.getElementById('chartForm').addEventListener('change', function() {
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-x: auto;
+    overflow: hidden;
 }
 
 /* フォームスタイル調整 */
