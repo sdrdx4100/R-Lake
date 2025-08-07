@@ -414,22 +414,25 @@ class ChartViewSet(viewsets.ModelViewSet):
         """現在の設定を基にプレビューを生成"""
         chart = self.get_object()
 
+        # Handle both form data and JSON data
+        data = request.data if hasattr(request, 'data') and request.data else request.POST
+
         # POSTされたデータを一時的なChartオブジェクトに反映
         tmp_chart = Chart(
-            title=request.data.get("title", chart.title),
-            chart_type=request.data.get("chart_type", chart.chart_type),
+            title=data.get("title", chart.title),
+            chart_type=data.get("chart_type", chart.chart_type),
             dataset=chart.dataset,
             created_by=request.user,
-            x_axis_column=request.data.get("x_axis")
-            or request.data.get("x_axis_column")
+            x_axis_column=data.get("x_axis")
+            or data.get("x_axis_column")
             or chart.x_axis_column,
-            y_axis_column=request.data.get("y_axis")
-            or request.data.get("y_axis_column")
+            y_axis_column=data.get("y_axis")
+            or data.get("y_axis_column")
             or chart.y_axis_column,
-            z_axis_column=request.data.get("z_axis_column", chart.z_axis_column),
-            color_column=request.data.get("color_column", chart.color_column),
-            size_column=request.data.get("size_column", chart.size_column),
-            color_scheme=request.data.get("color_scheme", chart.color_scheme),
+            z_axis_column=data.get("z_axis_column", chart.z_axis_column),
+            color_column=data.get("color_column", chart.color_column),
+            size_column=data.get("size_column", chart.size_column),
+            color_scheme=data.get("color_scheme", chart.color_scheme),
             chart_config=chart.chart_config,
             filters=chart.filters,
         )
@@ -447,7 +450,11 @@ class ChartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="preview")
     def preview_new(self, request):  # type: ignore[override]
         """新規作成時のプレビュー生成"""
-        dataset_id = request.data.get("dataset") or request.data.get("dataset_id")
+        # Handle both form data and JSON data
+        data = request.data if hasattr(request, 'data') and request.data else request.POST
+        
+        dataset_id = data.get("dataset") or data.get("dataset_id")
+        
         if not dataset_id:
             return Response(
                 {"success": False, "error": "データセットが指定されていません"},
@@ -462,16 +469,16 @@ class ChartViewSet(viewsets.ModelViewSet):
             )
 
         tmp_chart = Chart(
-            title=request.data.get("title", ""),
-            chart_type=request.data.get("chart_type", "line"),
+            title=data.get("title", ""),
+            chart_type=data.get("chart_type", "line"),
             dataset=dataset,
             created_by=request.user,
-            x_axis_column=request.data.get("x_axis_column"),
-            y_axis_column=request.data.get("y_axis_column"),
-            z_axis_column=request.data.get("z_axis_column", ""),
-            color_column=request.data.get("color_column", ""),
-            size_column=request.data.get("size_column", ""),
-            color_scheme=request.data.get("color_scheme", "viridis"),
+            x_axis_column=data.get("x_axis_column"),
+            y_axis_column=data.get("y_axis_column"),
+            z_axis_column=data.get("z_axis_column", ""),
+            color_column=data.get("color_column", ""),
+            size_column=data.get("size_column", ""),
+            color_scheme=data.get("color_scheme", "viridis"),
             chart_config={},
             filters={},
         )

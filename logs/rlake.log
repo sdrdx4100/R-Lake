@@ -1,3 +1,27 @@
 ÉAÉbÉvÉçÅ[ÉhÉGÉâÅ[: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
 ÉAÉbÉvÉçÅ[ÉhÉGÉâÅ[: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
 ÉOÉâÉtçÏê¨ÉGÉâÅ[: Reverse for 'chart_detail' not found. 'chart_detail' is not a valid view function or pattern name.
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryKFS1VCbqZnAFNPB5
+Request data: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Request POST: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Dataset ID: None
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryCb1TzQNpBzW9BHeh
+Request data: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Request POST: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Dataset ID: None
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundarydAWnTBW3UVlY3vnp
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundary3M4aJxy6c9HNAvuc
+Request data: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Request data: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Request POST: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Request POST: {'csrfmiddlewaretoken': ['GOz3hjK4l3XB7Nqjm3TUBs3JUEr2k8cdjhTfq6jiCAyjhnapOHfnfXkDfJGexOXK']}
+Dataset ID: None
+Dataset ID: None
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryyg8sXkDg0MikW4dN
+Request data: {'csrfmiddlewaretoken': ['qIU4jfEz9cScbXRAIOyl9votx4Vwi6SL3begs2dNqJtUlxBGasUON0FnS9aIvMDi'], 'dataset': ['3'], 'title': ['Ëªä‰∏°ÈÄüÂ∫¶„Å®RPM„ÅÆÈñ¢‰øÇ'], 'chart_type': ['scatter'], 'x_axis_column': ['speed'], 'y_axis_column': ['rpm'], 'z_axis_column': [''], 'color_column': [''], 'size_column': [''], 'color_scheme': ['viridis']}
+Request POST: {'csrfmiddlewaretoken': ['qIU4jfEz9cScbXRAIOyl9votx4Vwi6SL3begs2dNqJtUlxBGasUON0FnS9aIvMDi'], 'dataset': ['3'], 'title': ['Ëªä‰∏°ÈÄüÂ∫¶„Å®RPM„ÅÆÈñ¢‰øÇ'], 'chart_type': ['scatter'], 'x_axis_column': ['speed'], 'y_axis_column': ['rpm'], 'z_axis_column': [''], 'color_column': [''], 'size_column': [''], 'color_scheme': ['viridis']}
+Dataset ID: 3
+Preview request - Content-Type: multipart/form-data; boundary=----WebKitFormBoundarysl7ozZItaQAwe7Bs
+Request data: {'csrfmiddlewaretoken': ['qIU4jfEz9cScbXRAIOyl9votx4Vwi6SL3begs2dNqJtUlxBGasUON0FnS9aIvMDi'], 'dataset': ['3'], 'title': ['Ëªä‰∏°ÈÄüÂ∫¶„Å®RPM„ÅÆÈñ¢‰øÇ'], 'chart_type': ['scatter'], 'x_axis_column': ['speed'], 'y_axis_column': ['rpm'], 'z_axis_column': [''], 'color_column': [''], 'size_column': [''], 'color_scheme': ['viridis']}
+Request POST: {'csrfmiddlewaretoken': ['qIU4jfEz9cScbXRAIOyl9votx4Vwi6SL3begs2dNqJtUlxBGasUON0FnS9aIvMDi'], 'dataset': ['3'], 'title': ['Ëªä‰∏°ÈÄüÂ∫¶„Å®RPM„ÅÆÈñ¢‰øÇ'], 'chart_type': ['scatter'], 'x_axis_column': ['speed'], 'y_axis_column': ['rpm'], 'z_axis_column': [''], 'color_column': [''], 'size_column': [''], 'color_scheme': ['viridis']}
+Dataset ID: 3
