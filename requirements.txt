@@ -1,0 +1,38 @@
+# Django Web Framework
+Django==5.2.4
+
+# Django REST Framework for API development
+djangorestframework==3.15.2
+
+# CORS headers for API access
+django-cors-headers==4.4.0
+
+# Data processing and analysis
+pandas==2.2.2
+numpy==1.26.4
+
+# Data visualization
+plotly==5.22.0
+
+# Character encoding detection
+chardet==5.2.0
+
+# Python standard library dependencies (already included with Python)
+# - json
+# - csv
+# - io
+# - hashlib
+# - logging
+# - pathlib
+# - os
+# - sys
+# - typing
+
+# Database (SQLite is included with Python and Django)
+# For PostgreSQL support (if needed later):
+# psycopg2-binary==2.9.9
+
+# Development dependencies (optional)
+# django-debug-toolbar==4.4.6
+# pytest==8.2.2
+# pytest-django==4.8.0
