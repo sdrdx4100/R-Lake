@@ -1,0 +1,14 @@
+asgiref==3.9.1
+chardet==5.2.0
+Django==5.2.4
+django-cors-headers==4.7.0
+djangorestframework==3.16.1
+narwhals==2.0.1
+numpy==2.3.2
+pandas==2.3.1
+plotly==6.2.0
+python-dateutil==2.9.0.post0
+pytz==2025.2
+six==1.17.0
+sqlparse==0.5.3
+tzdata==2025.2
