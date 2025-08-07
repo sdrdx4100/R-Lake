@@ -62,16 +62,31 @@
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var table = $('#datasetsTable');
-    if ($.fn.dataTable.isDataTable(table)) {
-        table.DataTable().clear().destroy();
-    }
-    table.DataTable({
-        language: {
-            url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
+$(document).ready(function() {
+    // Check if DataTables is available and jQuery is loaded
+    if (typeof $.fn.DataTable !== 'undefined') {
+        var table = $('#datasetsTable');
+        
+        // Destroy existing DataTable if present
+        if ($.fn.DataTable.isDataTable(table)) {
+            table.DataTable().clear().destroy();
         }
-    });
+        
+        // Initialize DataTable with Japanese localization
+        table.DataTable({
+            language: {
+                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
+            },
+            responsive: true,
+            pageLength: 25,
+            order: [[3, 'desc']], // Sort by creation date descending
+            columnDefs: [
+                { orderable: false, targets: 4 } // Make action column non-sortable
+            ]
+        });
+    } else {
+        console.warn('DataTables library not available. Table will display without enhanced functionality.');
+    }
 });
 </script>
 {% endblock %}
