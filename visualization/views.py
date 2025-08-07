@@ -175,11 +175,9 @@ def chart_data_api(request, chart_id):
         fig, result = generator.generate_chart(chart)
 
         if result["success"]:
-            # Plotly図をJSON形式で返す
-            chart_json = fig.to_json()
-            return JsonResponse(
-                {"chart_data": json.loads(chart_json), "result": result}
-            )
+            # Plotly図のトレースをJSON形式で返す
+            chart_json = fig.to_plotly_json()
+            return JsonResponse({"traces": chart_json["data"], "result": result})
         else:
             return JsonResponse(
                 {"error": result.get("error", "不明なエラー")}, status=500
