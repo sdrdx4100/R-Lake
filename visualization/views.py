@@ -20,8 +20,24 @@ import json
 import plotly
 import plotly.graph_objects as go
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class NumpyJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle numpy arrays and other numpy types"""
+    
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        return super().default(obj)
 
 
 @login_required
@@ -177,7 +193,15 @@ def chart_data_api(request, chart_id):
         if result["success"]:
             # Plotly図のトレースをJSON形式で返す
             chart_json = fig.to_plotly_json()
-            return JsonResponse({"traces": chart_json["data"], "result": result})
+            
+            # Serialize with custom encoder to handle numpy arrays
+            response_data = {"traces": chart_json["data"], "result": result}
+            json_str = json.dumps(response_data, cls=NumpyJSONEncoder)
+            
+            return HttpResponse(
+                json_str,
+                content_type='application/json'
+            )
         else:
             return JsonResponse(
                 {"error": result.get("error", "不明なエラー")}, status=500
