@@ -163,10 +163,16 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/visualization/api/datasets/${datasetId}/columns/`)
                 .then(response => response.json())
                 .then(data => {
-                    updateColumnSelects(data.columns);
+                    if (data.columns) {
+                        updateColumnSelects(data.columns);
+                    } else {
+                        console.error('カラム情報の取得に失敗:', data);
+                        clearColumnSelects();
+                    }
                 })
                 .catch(error => {
                     console.error('カラム情報取得エラー:', error);
+                    clearColumnSelects();
                 });
         } else {
             clearColumnSelects();
@@ -178,7 +184,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const preselect = params.get('dataset');
     if (preselect) {
         datasetSelect.value = preselect;
-        datasetSelect.dispatchEvent(new Event('change'));
+        // 自動的にカラム情報を読み込み
+        setTimeout(() => {
+            datasetSelect.dispatchEvent(new Event('change'));
+        }, 100);
     }
     
     function updateColumnSelects(columns) {
@@ -200,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // 必須でないセレクトの最初のオプションを更新
+        xAxisSelect.children[0].textContent = "選択してください";
         yAxisSelect.children[0].textContent = "選択してください";
         zAxisSelect.children[0].textContent = "なし";
         colorSelect.children[0].textContent = "なし";
@@ -226,53 +236,116 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function filterColumnOptions() {
+        if (!columnFilter) return;
         const filter = columnFilter.value.toLowerCase();
         document.querySelectorAll('.column-select option').forEach(option => {
             if (!option.value) return;
             option.style.display = option.textContent.toLowerCase().includes(filter) ? '' : 'none';
         });
     }
-    columnFilter.addEventListener('input', filterColumnOptions);
+    
+    if (columnFilter) {
+        columnFilter.addEventListener('input', filterColumnOptions);
+    }
 
     async function previewChart() {
         const form = document.querySelector('form');
-        const formData = new FormData(form);
-        previewContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 生成中...</div>';
+        
+        // Manually build FormData with all required fields
+        const formData = new FormData();
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        // Add form fields manually
+        const dataset = document.getElementById('dataset').value;
+        const title = document.getElementById('title').value;
+        const chartType = document.getElementById('chart_type').value;
+        const xAxis = document.getElementById('x_axis_column').value;
+        const yAxis = document.getElementById('y_axis_column').value;
+        const zAxis = document.getElementById('z_axis_column').value;
+        const colorColumn = document.getElementById('color_column').value;
+        const sizeColumn = document.getElementById('size_column').value;
+        const colorScheme = document.getElementById('color_scheme').value;
+        
+        formData.append('dataset', dataset);
+        formData.append('title', title);
+        formData.append('chart_type', chartType);
+        formData.append('x_axis_column', xAxis);
+        formData.append('y_axis_column', yAxis);
+        formData.append('z_axis_column', zAxis);
+        formData.append('color_column', colorColumn);
+        formData.append('size_column', sizeColumn);
+        formData.append('color_scheme', colorScheme);
+        
+        // 必要なフィールドの検証
+        if (!dataset) {
+            previewContainer.innerHTML = '<div class="alert alert-warning">データセットを選択してください。</div>';
+            return;
+        }
+        
+        if (!chartType) {
+            previewContainer.innerHTML = '<div class="alert alert-warning">グラフタイプを選択してください。</div>';
+            return;
+        }
+        
+        if (!xAxis && chartType !== 'heatmap') {
+            previewContainer.innerHTML = '<div class="alert alert-warning">X軸カラムを選択してください。</div>';
+            return;
+        }
+        
+        previewContainer.innerHTML = '<div class="text-center"><span style="display: inline-block; animation: spin 1s linear infinite;">⟳</span> 生成中...</div>';
 
         try {
             const response = await fetch('/visualization/api/charts/preview/', {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': csrfToken
                 }
             });
+            
             const result = await response.json();
+            
             if (result.success) {
                 const layout = {
-                    title: { text: formData.get('title') },
-                    xaxis: { title: formData.get('x_axis_column') },
-                    yaxis: { title: formData.get('y_axis_column') },
+                    title: { text: title || 'プレビュー' },
+                    xaxis: { title: xAxis || 'X軸' },
+                    yaxis: { title: yAxis || 'Y軸' },
                     responsive: true,
                     margin: { t: 50, r: 50, b: 50, l: 50 }
                 };
-                Plotly.newPlot('preview-container', result.traces, layout, {responsive: true, displayModeBar: false});
+                
+                if (typeof Plotly !== 'undefined' && Plotly.newPlot) {
+                    Plotly.newPlot('preview-container', result.traces || [], layout, {responsive: true, displayModeBar: false});
+                } else {
+                    previewContainer.innerHTML = '<div style="padding: 2rem; text-align: center; border: 2px dashed #28a745; background-color: #d4edda;"><h4>✅ プレビュー生成成功</h4><p>グラフは正常に生成されました。Plotly.jsが利用できないため、プレースホルダーを表示しています。</p><p><strong>データ:</strong> ' + (result.traces ? result.traces.length + ' トレース' : 'N/A') + '</p></div>';
+                }
             } else {
-                previewContainer.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+                previewContainer.innerHTML = `<div class="alert alert-danger">エラー: ${result.error}</div>`;
             }
         } catch (error) {
             console.error('プレビュー生成エラー:', error);
-            previewContainer.innerHTML = '<div class="alert alert-danger">プレビューの生成に失敗しました。</div>';
+            previewContainer.innerHTML = '<div class="alert alert-danger">プレビューの生成に失敗しました。ネットワークエラーまたはサーバーエラーが発生している可能性があります。</div>';
         }
     }
 
-    previewButton.addEventListener('click', previewChart);
-    document.querySelector('form').addEventListener('change', previewChart);
+    if (previewButton) {
+        previewButton.addEventListener('click', previewChart);
+    }
+    
+    // フォーム変更時の自動プレビューは無効にして、手動プレビューのみにする
+    // document.querySelector('form').addEventListener('change', previewChart);
 });
 </script>
 <style>
 #preview-container {
     overflow: hidden;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>
 {% endblock %}
