@@ -447,7 +447,12 @@ class ChartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="preview")
     def preview_new(self, request):  # type: ignore[override]
         """新規作成時のプレビュー生成"""
-        dataset_id = request.data.get("dataset")
+        dataset_id = request.data.get("dataset") or request.data.get("dataset_id")
+        if not dataset_id:
+            return Response(
+                {"success": False, "error": "データセットが指定されていません"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             dataset = Dataset.objects.get(id=dataset_id, is_active=True)
         except Dataset.DoesNotExist:
