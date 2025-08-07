@@ -165,8 +165,9 @@ const datasetId = {{ chart.dataset.pk }};
 let datasetColumns = [];
 
 // ページ読み込み時の初期化
-document.addEventListener('DOMContentLoaded', function() {
-    loadDatasetColumns();
+document.addEventListener('DOMContentLoaded', async function() {
+    // データセットのカラムを取得してから現在の設定を反映する
+    await loadDatasetColumns();
     loadCurrentChart();
 });
 
@@ -357,9 +358,6 @@ document.getElementById('chartForm').addEventListener('change', function() {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     background-color: var(--bg-white);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     overflow: hidden;
 }
 
