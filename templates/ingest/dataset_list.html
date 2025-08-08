@@ -60,22 +60,45 @@
 </div>
 
 {% block extra_js %}
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var $table = $('#datasetsTable');
-    try {
-        if ($table.length && $.fn && $.fn.dataTable) {
-            $table.DataTable({
-                destroy: true,      // 既存の初期化があれば安全に破棄
-                retrieve: true,     // 既存インスタンスがあればそれを再利用
-                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json' }
+(function(){
+    function loadScript(src, cb){
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = cb;
+        document.head.appendChild(s);
+    }
+    function initDataTable(){
+        function doInit(){
+            document.addEventListener('DOMContentLoaded', function(){
+                try {
+                    if (window.jQuery && $.fn && $.fn.dataTable) {
+                        var $table = $('#datasetsTable');
+                        if ($table.length) {
+                            $table.DataTable({
+                                destroy: true,
+                                retrieve: true,
+                                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json' }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn('DataTables 初期化で問題が発生しましたが、素のテーブルで継続します。', e);
+                }
             });
         }
-    } catch (e) {
-        console.warn('DataTables 初期化で問題が発生しましたが、素のテーブルで継続します。', e);
+        if (!$.fn || !$.fn.dataTable) {
+            loadScript('https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', doInit);
+        } else {
+            doInit();
+        }
     }
-});
+    if (!window.jQuery) {
+        loadScript('https://code.jquery.com/jquery-3.6.0.min.js', initDataTable);
+    } else {
+        initDataTable();
+    }
+})();
 </script>
 {% endblock %}
 {% endblock %}
