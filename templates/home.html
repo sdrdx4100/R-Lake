@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ホーム - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row align-items-center mb-4">
+    <div class="col-md-8 d-flex align-items-center gap-3">
+      <div>
+        <h1 class="mb-1">R-Lake ホーム</h1>
+      </div>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+      <a href="{% url 'ingest:upload_csv' %}" class="btn btn-primary me-2"><i class="fas fa-upload me-1"></i>CSVアップロード</a>
+      <a href="{% url 'visualization:dashboard_create' %}" class="btn btn-outline-primary"><i class="fas fa-columns me-1"></i>新規ダッシュボード</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- サマリーカード -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-database me-2"></i>サマリー</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">データセット</div>
+            <div class="fw-bold">{{ stats.datasets|default:0 }}</div>
+          </div>
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">グラフ</div>
+            <div class="fw-bold">{{ stats.charts|default:0 }}</div>
+          </div>
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">ダッシュボード</div>
+            <div class="fw-bold">{{ stats.dashboards|default:0 }}</div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'ingest:dataset_list' %}">一覧へ</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- クイックアクセス -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-bolt me-2"></i>クイックアクセス</div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6 col-lg-3">
+              <a class="btn w-100 btn-outline-primary" href="{% url 'ingest:dataset_list' %}"><i class="fas fa-list me-1"></i>データセット一覧</a>
+            </div>
+            <div class="col-6 col-lg-3">
+              <a class="btn w-100 btn-outline-primary" href="{% url 'ingest:upload_csv' %}"><i class="fas fa-upload me-1"></i>CSVアップロード</a>
+            </div>
+            <div class="col-6 col-lg-3">
+              <a class="btn w-100 btn-outline-primary" href="{% url 'visualization:chart_list' %}"><i class="fas fa-chart-line me-1"></i>グラフ一覧</a>
+            </div>
+            <div class="col-6 col-lg-3">
+              <a class="btn w-100 btn-outline-primary" href="{% url 'visualization:dashboard_list' %}"><i class="fas fa-columns me-1"></i>ダッシュボード一覧</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <!-- 最近のデータセット -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-clock me-2"></i>最近のデータセット</div>
+        <div class="card-body">
+          {% if recent_datasets %}
+          <ul class="list-group list-group-flush">
+            {% for ds in recent_datasets %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-bold">{{ ds.name }}</div>
+                <div class="text-muted small">{{ ds.created_at|date:"Y/m/d H:i" }} / {{ ds.total_rows }}件</div>
+              </div>
+              <div class="text-nowrap">
+                <a href="{% url 'ingest:dataset_detail' ds.pk %}" class="btn btn-sm btn-outline-primary">詳細</a>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+            <div class="text-muted">最近のデータセットはありません。</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- 最近の自分のグラフ／ダッシュボード -->
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-header"><i class="fas fa-chart-area me-2"></i>最近のグラフ</div>
+        <div class="card-body">
+          {% if my_recent_charts %}
+            <div class="d-flex flex-wrap gap-2">
+              {% for c in my_recent_charts %}
+                <a href="{% url 'visualization:chart_detail' c.pk %}" class="btn btn-sm btn-outline-secondary">{{ c.title|default:'(無題)' }}</a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">最近のグラフはありません。</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><i class="fas fa-columns me-2"></i>最近のダッシュボード</div>
+        <div class="card-body">
+          {% if my_recent_dashboards %}
+            <div class="d-flex flex-wrap gap-2">
+              {% for d in my_recent_dashboards %}
+                <a href="{% url 'visualization:dashboard_detail' d.pk %}" class="btn btn-sm btn-outline-secondary">{{ d.name }}</a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">最近のダッシュボードはありません。</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
