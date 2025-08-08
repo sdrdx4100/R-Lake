@@ -14,11 +14,13 @@ urlpatterns = [
     path('', views.DatasetListView.as_view(), name='dataset_list'),
     path('upload/', views.upload_csv, name='upload_csv'),
     path('datasets/<int:pk>/', views.DatasetDetailView.as_view(), name='dataset_detail'),
-    
+
     # AJAX APIs
     path('api/datasets/<int:dataset_id>/data/', views.dataset_data_api, name='dataset_data_api'),
     path('api/datasets/<int:dataset_id>/schema/', views.dataset_schema_api, name='dataset_schema_api'),
-    
+    path('api/datasets/<int:dataset_id>/export/schema.csv', views.dataset_export_schema_csv, name='dataset_export_schema_csv'),
+    path('api/datasets/<int:dataset_id>/export/sample.csv', views.dataset_export_sample_csv, name='dataset_export_sample_csv'),
+
     # REST API
     path('api/', include(router.urls)),
 ]

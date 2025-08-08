@@ -14,6 +14,7 @@ from .serializers import (
     ChartSerializer,
     DashboardSerializer,
     AnalysisTemplateSerializer,
+    ChartCreateSerializer,
 )
 from ingest.models import Dataset
 import json
@@ -30,33 +31,41 @@ def chart_create(request):
     if request.method == "POST":
         try:
             dataset_id = request.POST.get("dataset")
-            chart_type = request.POST.get("chart_type")
-            title = request.POST.get("title")
-            x_axis_column = request.POST.get("x_axis_column")
-            y_axis_column = request.POST.get("y_axis_column")
-            z_axis_column = request.POST.get("z_axis_column", "")
-            color_column = request.POST.get("color_column", "")
-            size_column = request.POST.get("size_column", "")
-            color_scheme = request.POST.get("color_scheme", "viridis")
-
             dataset = get_object_or_404(Dataset, id=dataset_id, is_active=True)
 
+            create_payload = {
+                "title": request.POST.get("title"),
+                "chart_type": request.POST.get("chart_type"),
+                "dataset": dataset.id,
+                "x_axis_column": request.POST.get("x_axis_column"),
+                "y_axis_column": request.POST.get("y_axis_column"),
+                "z_axis_column": request.POST.get("z_axis_column", ""),
+                "color_column": request.POST.get("color_column", ""),
+                "size_column": request.POST.get("size_column", ""),
+                "color_scheme": request.POST.get("color_scheme", "viridis"),
+                "chart_config": {},
+                "filters": {},
+            }
+
+            serializer = ChartCreateSerializer(data=create_payload)
+            serializer.is_valid(raise_exception=True)
+
             chart = Chart.objects.create(
-                title=title,
-                chart_type=chart_type,
+                title=serializer.validated_data["title"],
+                chart_type=serializer.validated_data["chart_type"],
                 dataset=dataset,
                 created_by=request.user,
-                x_axis_column=x_axis_column,
-                y_axis_column=y_axis_column,
-                z_axis_column=z_axis_column,
-                color_column=color_column,
-                size_column=size_column,
-                color_scheme=color_scheme,
-                chart_config={},
+                x_axis_column=serializer.validated_data.get("x_axis_column", ""),
+                y_axis_column=serializer.validated_data.get("y_axis_column", ""),
+                z_axis_column=serializer.validated_data.get("z_axis_column", ""),
+                color_column=serializer.validated_data.get("color_column", ""),
+                size_column=serializer.validated_data.get("size_column", ""),
+                color_scheme=serializer.validated_data.get("color_scheme", "viridis"),
+                chart_config=serializer.validated_data.get("chart_config", {}),
+                filters=serializer.validated_data.get("filters", {}),
             )
 
-            messages.success(request, f'グラフ "{title}" が作成されました。')
-            # Use namespaced URL to avoid reverse errors
+            messages.success(request, f'グラフ "{chart.title}" が作成されました。')
             return redirect("visualization:chart_detail", pk=chart.pk)
 
         except Exception as e:
@@ -80,6 +89,22 @@ class ChartListView(LoginRequiredMixin, ListView):
         return Chart.objects.filter(created_by=self.request.user).order_by(
             "-updated_at"
         )
+
+
+class DashboardListView(LoginRequiredMixin, ListView):
+    """ダッシュボード一覧"""
+
+    model = Dashboard
+    template_name = "visualization/dashboard_list.html"
+    context_object_name = "dashboards"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Dashboard.objects.filter(created_by=self.request.user)
+        q = self.request.GET.get("q")
+        if q:
+            qs = qs.filter(models.Q(name__icontains=q) | models.Q(description__icontains=q))
+        return qs.order_by("-updated_at")
 
 
 class ChartDetailView(LoginRequiredMixin, DetailView):
@@ -133,8 +158,8 @@ def chart_edit(request, pk):
             chart.title = request.POST.get("title", chart.title)
             chart.description = request.POST.get("description", chart.description)
             chart.chart_type = request.POST.get("chart_type", chart.chart_type)
-            chart.x_axis_column = request.POST.get("x_axis", chart.x_axis_column)
-            chart.y_axis_column = request.POST.get("y_axis", chart.y_axis_column)
+            chart.x_axis_column = request.POST.get("x_axis_column", chart.x_axis_column)
+            chart.y_axis_column = request.POST.get("y_axis_column", chart.y_axis_column)
             chart.color_column = request.POST.get("color_column", "")
             chart.size_column = request.POST.get("size_column", "")
 
@@ -175,9 +200,10 @@ def chart_data_api(request, chart_id):
         fig, result = generator.generate_chart(chart)
 
         if result["success"]:
-            # Plotly図のトレースをJSON形式で返す
-            chart_json = fig.to_plotly_json()
-            return JsonResponse({"traces": chart_json["data"], "result": result})
+            # PlotlyのエンコーダでJSON化された文字列を一度読み戻して安全に返却
+            fig_json_str = fig.to_json()
+            fig_json = json.loads(fig_json_str)
+            return JsonResponse({"traces": fig_json.get("data", []), "result": result})
         else:
             return JsonResponse(
                 {"error": result.get("error", "不明なエラー")}, status=500
@@ -319,7 +345,66 @@ class DashboardDetailView(LoginRequiredMixin, DetailView):
                 )
 
         context["charts_data"] = charts_data
+        # 追加可能なグラフ（このダッシュボードに未追加の自分のグラフ）
+        added_ids = [dc.chart_id for dc in dashboard.dashboardchart_set.all()]
+        available = Chart.objects.filter(created_by=self.request.user)
+        if added_ids:
+            available = available.exclude(id__in=added_ids)
+        context["available_charts"] = available.order_by("-updated_at")
+
+        # テーブル設定（layout_config.tables に dataset_id の配列を保持）
+        tables_cfg = {}
+        try:
+            tables_cfg = dashboard.layout_config or {}
+        except Exception:
+            tables_cfg = {}
+        table_ids = tables_cfg.get("tables", []) if isinstance(tables_cfg, dict) else []
+        table_datasets = Dataset.objects.filter(id__in=table_ids, is_active=True)
+        # 表示順は table_ids の順序を維持
+        table_dataset_map = {d.id: d for d in table_datasets}
+        context["table_datasets"] = [table_dataset_map[i] for i in table_ids if i in table_dataset_map]
+
+        # テーブル追加用に全データセット（簡易; 将来は権限/フィルタ適用）
+        context["all_datasets"] = Dataset.objects.filter(is_active=True).order_by("-created_at")
         return context
+
+    def post(self, request, *args, **kwargs):
+        """フォーム経由のグラフ追加（モーダルPOST）"""
+        self.object = self.get_object()
+        chart_id = request.POST.get("chart_id")
+        grid_width = int(request.POST.get("grid_width", 1))
+        grid_height = int(request.POST.get("grid_height", 1))
+
+        try:
+            chart = Chart.objects.get(id=chart_id, created_by=request.user)
+            # APIと同様の重複チェック
+            if self.object.charts.filter(id=chart_id).exists():
+                messages = __import__('django.contrib.messages').contrib.messages
+                messages.error(request, "このグラフは既にダッシュボードに追加されています")
+                return redirect("visualization:dashboard_detail", pk=self.object.pk)
+
+            from .models import DashboardChart
+            DashboardChart.objects.create(
+                dashboard=self.object,
+                chart=chart,
+                grid_x=0,
+                grid_y=0,
+                grid_width=grid_width,
+                grid_height=grid_height,
+                display_order=self.object.charts.count() + 1,
+            )
+
+            messages = __import__('django.contrib.messages').contrib.messages
+            messages.success(request, "グラフを追加しました")
+        except Chart.DoesNotExist:
+            messages = __import__('django.contrib.messages').contrib.messages
+            messages.error(request, "指定されたグラフが見つかりません")
+        except Exception as e:
+            logger.error(f"ダッシュボード追加(フォーム)エラー: {e}")
+            messages = __import__('django.contrib.messages').contrib.messages
+            messages.error(request, f"追加に失敗しました: {str(e)}")
+
+        return redirect("visualization:dashboard_detail", pk=self.object.pk)
 
 
 @login_required
@@ -409,6 +494,20 @@ class ChartViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    # 部分更新に対応（PUT/PATCH 両方で partial を許可）
+    def update(self, request, *args, **kwargs):  # type: ignore[override]
+        partial = request.method.upper() == "PATCH" or request.data.get("partial") in ("1", "true", True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({"success": True, "chart": serializer.data})
+
+    def destroy(self, request, *args, **kwargs):  # type: ignore[override]
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"success": True})
+
     @action(detail=True, methods=["post"], url_path="preview")
     def preview_existing(self, request, pk=None):
         """現在の設定を基にプレビューを生成"""
@@ -438,7 +537,8 @@ class ChartViewSet(viewsets.ModelViewSet):
         fig, result = generator.generate_chart(tmp_chart)
 
         if result["success"]:
-            return Response({"success": True, "traces": fig.to_plotly_json()["data"]})
+            fig_json = json.loads(fig.to_json())
+            return Response({"success": True, "traces": fig_json.get("data", [])})
         else:
             return Response(
                 {"success": False, "error": result.get("error", "エラーが発生しました")}
@@ -447,7 +547,17 @@ class ChartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="preview")
     def preview_new(self, request):  # type: ignore[override]
         """新規作成時のプレビュー生成"""
-        dataset_id = request.data.get("dataset")
+        dataset_id = (
+            request.data.get("dataset")
+            or request.data.get("dataset_id")
+            or request.query_params.get("dataset")
+            or request.query_params.get("dataset_id")
+        )
+        if not dataset_id:
+            return Response(
+                {"success": False, "error": "データセットが指定されていません"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             dataset = Dataset.objects.get(id=dataset_id, is_active=True)
         except Dataset.DoesNotExist:
@@ -475,7 +585,8 @@ class ChartViewSet(viewsets.ModelViewSet):
         fig, result = generator.generate_chart(tmp_chart)
 
         if result["success"]:
-            return Response({"success": True, "traces": fig.to_plotly_json()["data"]})
+            fig_json = json.loads(fig.to_json())
+            return Response({"success": True, "traces": fig_json.get("data", [])})
         else:
             return Response(
                 {"success": False, "error": result.get("error", "エラーが発生しました")}
@@ -567,6 +678,66 @@ class DashboardViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+@login_required
+def dashboard_remove_chart(request, pk: int, chart_id: int):
+    """ダッシュボードから特定のグラフを外す"""
+    dashboard = get_object_or_404(Dashboard, pk=pk)
+    try:
+        from .models import DashboardChart
+        DashboardChart.objects.filter(dashboard=dashboard, chart_id=chart_id).delete()
+        messages.success(request, "ダッシュボードからグラフを外しました")
+    except Exception as e:
+        logger.error(f"ダッシュボードからの除外エラー: {e}")
+        messages.error(request, f"除外に失敗しました: {str(e)}")
+    return redirect("visualization:dashboard_detail", pk=pk)
+
+
+@login_required
+def dashboard_add_table(request, pk: int):
+    """ダッシュボードにデータテーブル（データセット）を追加"""
+    dashboard = get_object_or_404(Dashboard, pk=pk)
+    try:
+        dataset_id = int(request.POST.get("dataset_id"))
+        # 検証
+        Dataset.objects.get(id=dataset_id, is_active=True)
+        cfg = dashboard.layout_config or {}
+        if not isinstance(cfg, dict):
+            cfg = {}
+        tables = cfg.get("tables", [])
+        if dataset_id not in tables:
+            tables.append(dataset_id)
+        cfg["tables"] = tables
+        dashboard.layout_config = cfg
+        dashboard.save(update_fields=["layout_config", "updated_at"])
+        messages.success(request, "データテーブルを追加しました")
+    except Dataset.DoesNotExist:
+        messages.error(request, "指定されたデータセットが見つかりません")
+    except Exception as e:
+        logger.error(f"テーブル追加エラー: {e}")
+        messages.error(request, f"追加に失敗しました: {str(e)}")
+    return redirect("visualization:dashboard_detail", pk=pk)
+
+
+@login_required
+def dashboard_remove_table(request, pk: int, dataset_id: int):
+    """ダッシュボードからデータテーブルを削除"""
+    dashboard = get_object_or_404(Dashboard, pk=pk)
+    try:
+        cfg = dashboard.layout_config or {}
+        if not isinstance(cfg, dict):
+            cfg = {}
+        tables = cfg.get("tables", [])
+        tables = [i for i in tables if i != int(dataset_id)]
+        cfg["tables"] = tables
+        dashboard.layout_config = cfg
+        dashboard.save(update_fields=["layout_config", "updated_at"])
+        messages.success(request, "データテーブルを削除しました")
+    except Exception as e:
+        logger.error(f"テーブル削除エラー: {e}")
+        messages.error(request, f"削除に失敗しました: {str(e)}")
+    return redirect("visualization:dashboard_detail", pk=pk)
 
 
 class AnalysisTemplateViewSet(viewsets.ModelViewSet):

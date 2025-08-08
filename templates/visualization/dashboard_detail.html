@@ -14,6 +14,9 @@
             <p class="text-muted mb-0">{{ dashboard.description|default:"説明なし" }}</p>
         </div>
         <div class="btn-group">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addChartModal">
+                <i class="fas fa-plus-circle me-1"></i>グラフを追加
+            </button>
             <a href="{% url 'visualization:chart_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-list me-1"></i>チャート一覧へ
             </a>
@@ -28,13 +31,18 @@
         {% for item in charts_data %}
         <div class="col-md-6 mb-4">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-chart-area me-2"></i>{{ item.chart.title }}
                     </h5>
+                    <a class="btn btn-sm btn-outline-danger" href="{% url 'visualization:dashboard_remove_chart' dashboard.pk item.chart.pk %}">
+                        <i class="fas fa-times"></i>
+                    </a>
                 </div>
                 <div class="card-body">
-                    {{ item.chart_html|safe }}
+                    <div class="rl-chart" data-chart-id="{{ item.chart.id }}" data-dataset-id="{{ item.chart.dataset.id }}" data-xcol="{{ item.chart.x_axis_column|default:'' }}" data-ycol="{{ item.chart.y_axis_column|default:'' }}">
+                        {{ item.chart_html|safe }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -45,5 +53,209 @@
         <i class="fas fa-info-circle me-2"></i>このダッシュボードにグラフがまだ追加されていません。
     </div>
     {% endif %}
+    <!-- Add Chart Modal -->
+    <div class="modal fade" id="addChartModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-chart-line me-2"></i>グラフを追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="add-chart-form" method="post" action="{% url 'visualization:dashboard_add_chart' dashboard.pk %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        {% if available_charts %}
+                        <div class="mb-3">
+                            <label class="form-label">グラフ</label>
+                            <select class="form-select" name="chart_id" required>
+                                {% for c in available_charts %}
+                                <option value="{{ c.id }}">{{ c.title }}（{{ c.get_chart_type_display }}）</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">幅</label>
+                                <input type="number" class="form-control" name="grid_width" value="1" min="1" max="4">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">高さ</label>
+                                <input type="number" class="form-control" name="grid_height" value="1" min="1" max="4">
+                            </div>
+                        </div>
+                        {% else %}
+                            <div class="alert alert-light mb-0">追加できるグラフがありません。</div>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                        <button type="submit" class="btn btn-primary" {% if not available_charts %}disabled{% endif %}>追加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- データテーブル（データセット可視化） -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-table me-2"></i>データテーブル</h5>
+            <form class="d-flex" method="post" action="{% url 'visualization:dashboard_add_table' dashboard.pk %}">
+                {% csrf_token %}
+                <select class="form-select form-select-sm me-2" name="dataset_id" required style="min-width:260px;">
+                    <option value="">データセットを選択</option>
+                    {% for ds in all_datasets %}
+                        <option value="{{ ds.id }}">{{ ds.name }} ({{ ds.total_rows }})</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-plus me-1"></i>追加</button>
+            </form>
+        </div>
+        <div class="card-body">
+            {% if table_datasets %}
+                {% for ds in table_datasets %}
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <h6 class="mb-0">{{ ds.name }}</h6>
+                            <div class="d-flex align-items-center small text-muted">
+                                <label class="me-1 mb-0">表示件数</label>
+                                <select class="form-select form-select-sm table-length-select" data-ds-id="{{ ds.id }}" style="width:auto;">
+                                    <option value="10">10</option>
+                                    <option value="100" selected>100</option>
+                                    <option value="1000">1000</option>
+                                </select>
+                            </div>
+                        </div>
+                        <a href="{% url 'visualization:dashboard_remove_table' dashboard.pk ds.id %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped" id="table-ds-{{ ds.id }}">
+                            <thead>
+                                <tr>
+                                    <th>行番号</th>
+                                    {% for field in ds.schema_fields.all %}
+                                        <th>{{ field.column_name }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-muted">テーブルはまだ追加されていません。</div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* テーブルをよりコンパクトに */
+.table.table-sm td, .table.table-sm th { padding: .25rem .5rem; }
+.table.table-sm { font-size: .875rem; }
+.card .table-responsive { /* 画面占有を抑えるため、必要に応じて高さ制限をかける */
+  max-height: 480px;
+  overflow: auto;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 送信時に二重クリックを防止
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('add-chart-form');
+    if (form) {
+        form.addEventListener('submit', () => {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) { btn.disabled = true; }
+        });
+    }
+
+    // テーブルデータのロード（件数可変）
+    async function loadDatasetTable(dsId, perPage) {
+        const tbl = document.getElementById(`table-ds-${dsId}`);
+        if (!tbl) return;
+        try {
+            const res = await fetch(`/ingest/api/datasets/${dsId}/data/?page=1&per_page=${encodeURIComponent(perPage)}`);
+            const json = await res.json();
+            const rows = json.data || [];
+            const baseIndex = ((json.page || 1) - 1) * (json.per_page || rows.length || 0);
+            const tbody = tbl.querySelector('tbody');
+            tbody.innerHTML = '';
+            const headers = [...tbl.querySelectorAll('thead th')].slice(1).map(h => h.textContent);
+            rows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                const rowNum = baseIndex + idx + 1;
+                const th = document.createElement('th');
+                th.textContent = rowNum;
+                tr.appendChild(th);
+                headers.forEach((h) => {
+                    const td = document.createElement('td');
+                    td.textContent = row[h] ?? '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error('表データ読み込み失敗', e);
+        }
+    }
+
+    // 初期ロード（セレクトがあればその値、なければ10）
+    document.querySelectorAll('table[id^="table-ds-"]').forEach((tbl) => {
+        const dsId = tbl.id.replace('table-ds-','');
+        const select = document.querySelector(`.table-length-select[data-ds-id="${dsId}"]`);
+        const per = select ? parseInt(select.value, 10) : 10;
+        loadDatasetTable(dsId, per);
+    });
+
+    // 表示件数変更時にリロード
+    document.querySelectorAll('.table-length-select').forEach((sel) => {
+        sel.addEventListener('change', () => {
+            const dsId = sel.getAttribute('data-ds-id');
+            const per = parseInt(sel.value, 10) || 10;
+            loadDatasetTable(dsId, per);
+        });
+    });
+
+    // チャートとテーブルの簡易連携（クリックで行をハイライト）
+    // 前提: X軸が table の先頭列（1番目のthead th以降の列名）のいずれかに一致する場合のみマッチ
+    // 注意: ここでは先頭100件のみを対象
+    window.Plotly && document.querySelectorAll('.rl-chart').forEach((wrapper) => {
+        const datasetId = wrapper.dataset.datasetId;
+        const container = wrapper.querySelector('[id^="plotly-"], .plotly-graph-div');
+        if (!container) return;
+        container.on('plotly_click', (data) => {
+            try {
+                const xValue = data?.points?.[0]?.x;
+                if (xValue === undefined) return;
+                const table = document.getElementById(`table-ds-${datasetId}`);
+                if (!table) return;
+                const headers = [...table.querySelectorAll('thead th')].slice(1).map(h => h.textContent);
+                const xcol = wrapper.dataset.xcol;
+                const xIndex = headers.indexOf(xcol);
+                if (xIndex === -1) return;
+                // 既存ハイライトを解除
+                table.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('table-warning'));
+                // 行を走査して該当セル値が一致する行をハイライト
+                table.querySelectorAll('tbody tr').forEach(tr => {
+                    const td = tr.querySelectorAll('td')[xIndex];
+                    if (!td) return;
+                    if (String(td.textContent).trim() === String(xValue)) {
+                        tr.classList.add('table-warning');
+                        // スクロールして見えるように
+                        tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                });
+            } catch (e) {
+                console.warn('チャート連携処理でエラー', e);
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -4,7 +4,7 @@
 {% block title %}グラフ編集 - {{ chart.title }} - R-Lake{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" id="chart-edit-container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>
             <i class="fas fa-edit me-2"></i>グラフ編集
@@ -54,9 +54,9 @@
                                 <option value="box" {% if chart.chart_type == 'box' %}selected{% endif %}>箱ひげ図</option>
                                 <option value="heatmap" {% if chart.chart_type == 'heatmap' %}selected{% endif %}>ヒートマップ</option>
                                 <option value="pie" {% if chart.chart_type == 'pie' %}selected{% endif %}>円グラフ</option>
+                                <option value="area" {% if chart.chart_type == 'area' %}selected{% endif %}>エリアグラフ</option>
+                                <option value="violin" {% if chart.chart_type == 'violin' %}selected{% endif %}>バイオリンプロット</option>
                                 <option value="3d_scatter" {% if chart.chart_type == '3d_scatter' %}selected{% endif %}>3D散布図</option>
-                                <option value="surface" {% if chart.chart_type == 'surface' %}selected{% endif %}>3D表面</option>
-                                <option value="radar" {% if chart.chart_type == 'radar' %}selected{% endif %}>レーダーチャート</option>
                             </select>
                         </div>
 
@@ -246,6 +246,13 @@ async function updateChart() {
     previewContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 生成中...</div>';
     
     try {
+        // Y軸が必要なグラフタイプなのに未指定の場合は早期警告
+        const type = formData.get('chart_type');
+        const needsY = ['line','bar','scatter','box','violin','area','3d_scatter'].includes(type);
+        if (needsY && !formData.get('y_axis_column')) {
+            previewContainer.innerHTML = '<div class="alert alert-warning">このグラフタイプではY軸カラムが必要です。</div>';
+            return;
+        }
         const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/preview/`, {
             method: 'POST',
             body: formData,
@@ -261,56 +268,75 @@ async function updateChart() {
             const layout = {
                 title: { text: formData.get('title') },
                 xaxis: { title: formData.get('x_axis_column') },
-                yaxis: { title: formData.get('y_axis_column') },
+                yaxis: { title: formData.get('y_axis_column') || '' },
                 responsive: true,
                 margin: { t: 50, r: 50, b: 50, l: 50 }
             };
             
-            Plotly.newPlot('preview-container', result.traces, layout, {
+            // スピナーを確実に消す
+            const el = document.getElementById('preview-container');
+            el.innerHTML = '';
+            Plotly.newPlot(el, result.traces, layout, {
                 responsive: true,
                 displayModeBar: false
             });
         } else {
-            previewContainer.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+            previewContainer.innerHTML = `<div class="alert alert-danger">${result.error || 'プレビュー生成に失敗しました。'}</div>`;
         }
         
     } catch (error) {
         console.error('プレビュー更新エラー:', error);
-        previewContainer.innerHTML = '<div class="alert alert-danger">プレビューの生成に失敗しました。</div>';
+        previewContainer.innerHTML = `<div class="alert alert-danger">プレビューの生成に失敗しました: ${error.message}</div>`;
     }
 }
 
 // チャート保存
 async function saveChart() {
     const formData = new FormData(document.getElementById('chartForm'));
+    // Serializerのフィールド名に合わせてFormDataのキーを統一
+    const payload = new FormData();
+    payload.append('title', formData.get('title'));
+    payload.append('description', formData.get('description'));
+    payload.append('chart_type', formData.get('chart_type'));
+    payload.append('x_axis_column', formData.get('x_axis_column'));
+    payload.append('y_axis_column', formData.get('y_axis_column'));
+    payload.append('color_column', formData.get('color_column'));
+    payload.append('size_column', formData.get('size_column'));
+    // 部分更新フラグ（PUTでもpartial扱いにする）
+    payload.append('partial', '1');
     
     try {
         const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/`, {
             method: 'PUT',
-            body: formData,
+            body: payload,
             headers: {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         });
         
-        const result = await response.json();
+        let result = null;
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = {}; }
         
-        if (result.success) {
-            // 成功メッセージを表示
+        if (response.ok && result.success) {
+            // 成功メッセージを表示（ページ内の編集コンテナ先頭に表示）
             const alert = document.createElement('div');
             alert.className = 'alert alert-success alert-dismissible fade show';
             alert.innerHTML = `
                 <i class="fas fa-check me-2"></i>グラフが正常に保存されました。
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+            const container = document.getElementById('chart-edit-container');
+            if (container) {
+                container.prepend(alert);
+            }
             
             // 3秒後に詳細ページにリダイレクト
             setTimeout(() => {
                 window.location.href = `/visualization/charts/{{ chart.pk }}/`;
             }, 3000);
         } else {
-            throw new Error(result.error || '保存に失敗しました');
+            throw new Error((result && result.detail) || (result && result.error) || '保存に失敗しました');
         }
         
     } catch (error) {
@@ -332,13 +358,15 @@ function confirmDelete() {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         }
     })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
+    .then(async response => {
+        if (response.ok) {
             window.location.href = '/visualization/';
-        } else {
-            alert('削除に失敗しました');
+            return;
         }
+        const text = await response.text();
+        let result = {};
+        try { result = JSON.parse(text); } catch {}
+        throw new Error(result.error || '削除に失敗しました');
     })
     .catch(error => {
         console.error('削除エラー:', error);

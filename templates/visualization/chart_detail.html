@@ -204,6 +204,9 @@ async function loadChart() {
         // APIからデータを取得
         const response = await fetch(`/visualization/api/charts/{{ chart.pk }}/data/`);
         const data = await response.json();
+        if (!response.ok || data.error) {
+            throw new Error(data.error || 'データ取得に失敗しました');
+        }
         
         // Plotlyでグラフを描画
         const layout = {
@@ -225,12 +228,17 @@ async function loadChart() {
             displaylogo: false
         };
         
+        if (!Array.isArray(data.traces) || data.traces.length === 0) {
+            document.getElementById('chart-container').innerHTML = 
+                '<div class="alert alert-warning">描画可能なトレースがありません。</div>';
+            return;
+        }
         Plotly.newPlot('chart-container', data.traces, layout, config);
         
     } catch (error) {
         console.error('グラフの読み込みエラー:', error);
         document.getElementById('chart-container').innerHTML = 
-            '<div class="alert alert-danger">グラフの読み込みに失敗しました。</div>';
+            `<div class="alert alert-danger">グラフの読み込みに失敗しました: ${error.message}</div>`;
     }
 }
 

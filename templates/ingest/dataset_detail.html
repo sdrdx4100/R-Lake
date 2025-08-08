@@ -6,19 +6,22 @@
 
 {% block extra_css %}
 <style>
+/* コンパクトなメトリクスカードに調整 */
 .metric-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 10px;
-    padding: 1.5rem;
+    background: var(--bs-light);
+    color: var(--bs-body-color);
+    border: 1px solid var(--border-color, rgba(0,0,0,.1));
+    border-radius: .5rem;
+    padding: .75rem;
     text-align: center;
-    margin-bottom: 1rem;
+    margin-bottom: .75rem;
 }
 
 .metric-value {
-    font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: .25rem;
+    line-height: 1.25rem;
 }
 
 .schema-badge {
@@ -36,9 +39,17 @@
     overflow-y: auto;
 }
 
+/* スキーマ一覧：最大10項目分の高さでスクロール */
+.schema-list {
+    /* 目安: 各行(約40px) x 10 + 余白 */
+    max-height: 460px;
+    overflow-y: auto;
+    padding-right: 4px; /* スクロールバーで横ズレしないように少し余白 */
+}
+
 .quality-score {
-    font-size: 3rem;
-    font-weight: bold;
+    font-size: 1.5rem;
+    font-weight: 700;
 }
 </style>
 {% endblock %}
@@ -53,16 +64,16 @@
             </h1>
             <p class="text-muted">{{ dataset.description|default:"説明なし" }}</p>
         </div>
-        <div>
-            <a href="{% url 'visualization:chart_create' %}?dataset={{ dataset.pk }}" 
-               class="btn btn-success me-2">
+          <div>
+                <a href="{% url 'visualization:chart_create' %}?dataset={{ dataset.pk }}" 
+                    class="btn btn-success btn-sm me-2">
                 <i class="fas fa-chart-line me-1"></i>グラフ作成
             </a>
             <a href="{% url 'visualization:analysis_correlation' dataset.pk %}" 
-               class="btn btn-info me-2">
+                    class="btn btn-info btn-sm me-2">
                 <i class="fas fa-analytics me-1"></i>相関分析
             </a>
-            <a href="{% url 'ingest:dataset_list' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'ingest:dataset_list' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i>一覧に戻る
             </a>
         </div>
@@ -114,6 +125,14 @@
                     </h5>
                 </div>
                 <div class="card-body schema-preview">
+                    <div class="mb-2 text-end">
+                        <a class="btn btn-outline-primary btn-sm me-2" href="{% url 'ingest:dataset_export_schema_csv' dataset.pk %}">
+                            <i class="fas fa-file-csv me-1"></i>スキーマCSV
+                        </a>
+                        <a class="btn btn-outline-primary btn-sm" href="{% url 'ingest:dataset_export_sample_csv' dataset.pk %}?limit=100">
+                            <i class="fas fa-file-csv me-1"></i>サンプルCSV
+                        </a>
+                    </div>
                     <div class="row">
                         {% if dataset.vehicle_model %}
                         <div class="col-md-4">
@@ -151,19 +170,21 @@
                 </div>
                 <div class="card-body">
                     {% if schema_fields %}
-                        {% for field in schema_fields %}
-                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                            <div>
-                                <strong>{{ field.column_name }}</strong>
-                                <span class="badge bg-secondary schema-badge ms-2">{{ field.get_column_type_display }}</span>
+                        <div class="schema-list">
+                            {% for field in schema_fields %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                <div>
+                                    <strong>{{ field.column_name }}</strong>
+                                    <span class="badge bg-secondary schema-badge ms-2">{{ field.get_column_type_display }}</span>
+                                </div>
+                                <div class="text-end">
+                                    {% if field.unique_count %}
+                                        <small class="text-muted">ユニーク値: {{ field.unique_count }}</small>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="text-end">
-                                {% if field.unique_count %}
-                                    <small class="text-muted">ユニーク値: {{ field.unique_count }}</small>
-                                {% endif %}
-                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     {% else %}
                         <p class="text-muted">スキーマ情報がありません。</p>
                     {% endif %}
@@ -247,6 +268,33 @@
                                 <span class="badge bg-warning fs-6">{{ quality_report.duplicate_records }}</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- このデータセットを利用しているグラフ -->
+    {% if used_charts %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-project-diagram me-2"></i>このデータセットを利用しているグラフ</h5>
+                    <small class="text-muted">{{ used_charts|length }} 件</small>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for chart in used_charts %}
+                        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="{% url 'visualization:chart_detail' chart.pk %}">
+                            <span>
+                                <i class="fas fa-chart-line me-2"></i>{{ chart.title }}
+                                <span class="badge bg-secondary ms-2">{{ chart.get_chart_type_display }}</span>
+                            </span>
+                            <small class="text-muted">更新: {{ chart.updated_at|date:"Y/m/d H:i" }}</small>
+                        </a>
+                        {% endfor %}
                     </div>
                 </div>
             </div>

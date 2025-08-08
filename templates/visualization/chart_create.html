@@ -14,7 +14,7 @@
                     </h1>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form id="createForm" method="post">
                         {% csrf_token %}
                         
                         <div class="mb-3">
@@ -237,6 +237,18 @@ document.addEventListener('DOMContentLoaded', function() {
     async function previewChart() {
         const form = document.querySelector('form');
         const formData = new FormData(form);
+        // バックエンドが dataset_id を許容するため両方送っておく
+        if (!formData.get('dataset_id') && formData.get('dataset')) {
+            formData.append('dataset_id', formData.get('dataset'));
+        }
+        if (!formData.get('dataset')) {
+            previewContainer.innerHTML = '<div class="alert alert-warning">データセットを選択してください。</div>';
+            return;
+        }
+        if (!formData.get('x_axis_column')) {
+            previewContainer.innerHTML = '<div class="alert alert-warning">X軸カラムを選択してください。</div>';
+            return;
+        }
         previewContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> 生成中...</div>';
 
         try {
@@ -256,9 +268,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     margin: { t: 50, r: 50, b: 50, l: 50 }
                 };
-                Plotly.newPlot('preview-container', result.traces, layout, {responsive: true, displayModeBar: false});
+                const el = document.getElementById('preview-container');
+                el.innerHTML = '';
+                Plotly.newPlot(el, result.traces, layout, {responsive: true, displayModeBar: false});
             } else {
-                previewContainer.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+                previewContainer.innerHTML = `<div class="alert alert-danger">${result.error || 'プレビュー生成に失敗しました。'}</div>`;
             }
         } catch (error) {
             console.error('プレビュー生成エラー:', error);
@@ -267,7 +281,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     previewButton.addEventListener('click', previewChart);
-    document.querySelector('form').addEventListener('change', previewChart);
+    const formEl = document.getElementById('createForm');
+    formEl.addEventListener('change', previewChart);
+
+    // 送信前検証: Y軸が必要なタイプで未指定ならブロック
+    formEl.addEventListener('submit', function(e) {
+        const type = document.getElementById('chart_type').value;
+        const needsY = ['line','bar','scatter','box','violin','area','3d_scatter'].includes(type);
+        if (needsY && !document.getElementById('y_axis_column').value) {
+            e.preventDefault();
+            alert('このグラフタイプではY軸カラムが必要です。');
+        }
+    });
 });
 </script>
 <style>

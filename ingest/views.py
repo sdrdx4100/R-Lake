@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Dataset, DataSchema, RawDataFile, DataRecord, DataQualityReport
+from visualization.models import Chart
 from .processors import CSVProcessor
 from .serializers import DatasetSerializer, DataSchemaSerializer, RawDataFileSerializer
 import json
@@ -29,11 +30,11 @@ def upload_csv(request):
             description = request.POST.get('description', '')
             vehicle_model = request.POST.get('vehicle_model', '')
             measurement_location = request.POST.get('measurement_location', '')
-            
+
             if not uploaded_file or not dataset_name:
                 messages.error(request, 'ファイルとデータセット名は必須です。')
                 return render(request, 'ingest/upload.html')
-            
+
             # データセット作成
             with transaction.atomic():
                 dataset = Dataset.objects.create(
@@ -43,7 +44,7 @@ def upload_csv(request):
                     vehicle_model=vehicle_model,
                     measurement_location=measurement_location
                 )
-                
+
                 # ファイル保存
                 raw_file = RawDataFile.objects.create(
                     dataset=dataset,
@@ -51,14 +52,14 @@ def upload_csv(request):
                     file=uploaded_file,
                     file_size=uploaded_file.size
                 )
-                
+
                 # CSV処理
                 processor = CSVProcessor()
                 result = processor.process_csv(raw_file, dataset)
-                
+
                 if result['success']:
                     messages.success(
-                        request, 
+                        request,
                         f'データセット "{dataset_name}" が正常に作成されました。'
                         f'({result["processed_rows"]}行処理済み)'
                     )
@@ -66,12 +67,12 @@ def upload_csv(request):
                 else:
                     messages.error(request, 'CSV処理中にエラーが発生しました。')
                     return render(request, 'ingest/upload.html')
-                    
+
         except Exception as e:
             logger.error(f"アップロードエラー: {e}")
             messages.error(request, f'エラーが発生しました: {str(e)}')
             return render(request, 'ingest/upload.html')
-    
+
     return render(request, 'ingest/upload.html')
 
 
@@ -81,7 +82,7 @@ class DatasetListView(LoginRequiredMixin, ListView):
     template_name = 'ingest/dataset_list.html'
     context_object_name = 'datasets'
     paginate_by = 20
-    
+
     def get_queryset(self):
         return Dataset.objects.filter(is_active=True).order_by('-created_at')
 
@@ -91,23 +92,20 @@ class DatasetDetailView(LoginRequiredMixin, DetailView):
     model = Dataset
     template_name = 'ingest/dataset_detail.html'
     context_object_name = 'dataset'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dataset = self.object
-        
         # スキーマ情報
         context['schema_fields'] = dataset.schema_fields.all()
-        
         # 品質レポート
         context['quality_report'] = dataset.quality_reports.order_by('-report_date').first()
-        
         # サンプルデータ
         context['sample_records'] = dataset.records.all()[:10]
-        
         # 統計情報
         context['total_records'] = dataset.records.count()
-        
+        # このデータセットを利用しているグラフ（簡易ライネージ）
+        context['used_charts'] = Chart.objects.filter(dataset=dataset).order_by('-updated_at')
         return context
 
 
@@ -116,25 +114,69 @@ def dataset_data_api(request, dataset_id):
     """データセットのデータをJSON形式で返す"""
     try:
         dataset = get_object_or_404(Dataset, id=dataset_id, is_active=True)
-        
+
         # ページネーション
         page = int(request.GET.get('page', 1))
         per_page = int(request.GET.get('per_page', 100))
-        
+
         start = (page - 1) * per_page
         end = start + per_page
-        
-        records = dataset.records.all()[start:end]
-        data = [record.data for record in records]
-        
+
+        # 簡易フィルタリング（クエリ文字列の filter_ プレフィックスを解釈）
+        def match_filters(row: dict, filters: dict) -> bool:
+            for key, cond in filters.items():
+                val = row.get(cond['col'])
+                op = cond['op']
+                target = cond['value']
+                try:
+                    if op == 'eq' and not (val == target):
+                        return False
+                    if op == 'contains' and not (str(target).lower() in str(val).lower() if val is not None else False):
+                        return False
+                    if op == 'gte':
+                        if val is None:
+                            return False
+                        if float(val) < float(target):
+                            return False
+                    if op == 'lte':
+                        if val is None:
+                            return False
+                        if float(val) > float(target):
+                            return False
+                except Exception:
+                    return False
+            return True
+
+        filters = {}
+        for key, value in request.GET.items():
+            if not key.startswith('filter_'):
+                continue
+            rest = key.replace('filter_', '', 1)
+            if '__' in rest:
+                col, op = rest.split('__', 1)
+            else:
+                col, op = rest, 'eq'
+            if value is None or value == '':
+                continue
+            filters[key] = {'col': col, 'op': op, 'value': value}
+
+        # 全件を取得してPython側でフィルタ（簡易実装）
+        all_records = dataset.records.all()
+        all_data = [r.data for r in all_records]
+        if filters:
+            all_data = [row for row in all_data if match_filters(row, filters)]
+
+        total = len(all_data)
+        data = all_data[start:end]
+
         return JsonResponse({
             'data': data,
-            'total_records': dataset.total_rows,
+            'total_records': total,
             'page': page,
             'per_page': per_page,
-            'has_next': end < dataset.total_rows
+            'has_next': end < total
         })
-        
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -145,7 +187,7 @@ def dataset_schema_api(request, dataset_id):
     try:
         dataset = get_object_or_404(Dataset, id=dataset_id, is_active=True)
         schema_fields = dataset.schema_fields.all()
-        
+
         schema_data = []
         for field in schema_fields:
             schema_data.append({
@@ -156,89 +198,147 @@ def dataset_schema_api(request, dataset_id):
                 'max_value': field.max_value,
                 'unique_count': field.unique_count
             })
-        
+
         return JsonResponse({
             'schema': schema_data,
             'total_columns': len(schema_data)
         })
-        
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def dataset_export_schema_csv(request, dataset_id):
+    """スキーマをCSVダウンロード"""
+    import csv
+    dataset = get_object_or_404(Dataset, id=dataset_id, is_active=True)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="schema_{dataset_id}.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['column_name', 'column_type', 'is_nullable', 'min_value', 'max_value', 'unique_count'])
+    for f in dataset.schema_fields.all().order_by('column_order'):
+        writer.writerow([f.column_name, f.column_type, f.is_nullable, f.min_value, f.max_value, f.unique_count])
+    return response
+
+
+@login_required
+def dataset_export_sample_csv(request, dataset_id):
+    """サンプルデータをCSVダウンロード（先頭N行）"""
+    import csv
+    dataset = get_object_or_404(Dataset, id=dataset_id, is_active=True)
+    limit = int(request.GET.get('limit', 100))
+    records = dataset.records.all()[:limit]
+    # カラム順はスキーマ順
+    columns = [f.column_name for f in dataset.schema_fields.all().order_by('column_order')]
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="sample_{dataset_id}.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['row_number'] + columns)
+    for r in records:
+        row = [r.row_number] + [r.data.get(col) for col in columns]
+        writer.writerow(row)
+    return response
 
 
 # REST API ViewSets
 class DatasetViewSet(viewsets.ModelViewSet):
     """Dataset REST API"""
     serializer_class = DatasetSerializer
-    
+
     def get_queryset(self):
         return Dataset.objects.filter(is_active=True)
-    
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
-    
+
     @action(detail=True, methods=['get'])
     def data(self, request, pk=None):
         """データセットのデータを取得"""
         dataset = self.get_object()
-        
-        # フィルタリングパラメータ
+
+        # フィルタリングパラメータ（filter_colまたはfilter_col__op）
         filters = {}
         for key, value in request.query_params.items():
-            if key.startswith('filter_'):
-                column_name = key.replace('filter_', '')
-                filters[column_name] = value
-        
+            if not key.startswith('filter_'):
+                continue
+            rest = key.replace('filter_', '', 1)
+            if '__' in rest:
+                col, op = rest.split('__', 1)
+            else:
+                col, op = rest, 'eq'
+            if value is None or value == '':
+                continue
+            filters[key] = {'col': col, 'op': op, 'value': value}
+
         # ページネーション
         page = int(request.query_params.get('page', 1))
         per_page = min(int(request.query_params.get('per_page', 100)), 1000)
-        
+
         start = (page - 1) * per_page
         end = start + per_page
-        
-        records_query = dataset.records.all()
-        
-        # フィルタリング（簡易版）
+
+        records_all = dataset.records.all()
+        data_all = [r.data for r in records_all]
+
+        def match_filters(row: dict) -> bool:
+            for _, cond in filters.items():
+                val = row.get(cond['col'])
+                op = cond['op']
+                target = cond['value']
+                try:
+                    if op == 'eq' and not (val == target):
+                        return False
+                    if op == 'contains' and not (str(target).lower() in str(val).lower() if val is not None else False):
+                        return False
+                    if op == 'gte':
+                        if val is None or float(val) < float(target):
+                            return False
+                    if op == 'lte':
+                        if val is None or float(val) > float(target):
+                            return False
+                except Exception:
+                    return False
+            return True
+
         if filters:
-            # TODO: より高度なフィルタリング実装
-            pass
-        
-        records = records_query[start:end]
-        data = [record.data for record in records]
-        
+            data_all = [row for row in data_all if match_filters(row)]
+
+        total = len(data_all)
+        data = data_all[start:end]
+
         return Response({
             'data': data,
             'pagination': {
                 'page': page,
                 'per_page': per_page,
-                'total_records': dataset.total_rows,
-                'has_next': end < dataset.total_rows
+                'total_records': total,
+                'has_next': end < total
             }
         })
-    
+
     @action(detail=True, methods=['get'])
     def schema(self, request, pk=None):
         """データセットのスキーマを取得"""
         dataset = self.get_object()
         schema_fields = dataset.schema_fields.all()
-        
+
         schema_data = DataSchemaSerializer(schema_fields, many=True).data
-        
+
         return Response({
             'schema': schema_data,
             'total_columns': len(schema_data)
         })
-    
+
     @action(detail=True, methods=['get'])
     def quality_report(self, request, pk=None):
         """データ品質レポートを取得"""
         dataset = self.get_object()
         latest_report = dataset.quality_reports.order_by('-report_date').first()
-        
+
         if not latest_report:
-            return Response({'error': '品質レポートが見つかりません'}, 
-                          status=status.HTTP_404_NOT_FOUND)
-        
+            return Response({'error': '品質レポートが見つかりません'},
+                            status=status.HTTP_404_NOT_FOUND)
+
         return Response({
             'total_records': latest_report.total_records,
             'valid_records': latest_report.valid_records,
@@ -254,25 +354,25 @@ class RawDataFileViewSet(viewsets.ModelViewSet):
     """RawDataFile REST API"""
     serializer_class = RawDataFileSerializer
     parser_classes = (MultiPartParser, FormParser)
-    
+
     def get_queryset(self):
         return RawDataFile.objects.all()
-    
+
     @action(detail=True, methods=['post'])
     def process(self, request, pk=None):
         """ファイルを再処理"""
         raw_file = self.get_object()
-        
+
         try:
             processor = CSVProcessor()
             result = processor.process_csv(raw_file, raw_file.dataset)
-            
+
             return Response({
                 'success': result['success'],
                 'message': '処理が完了しました',
                 'result': result
             })
-            
+
         except Exception as e:
             logger.error(f"再処理エラー: {e}")
             return Response({

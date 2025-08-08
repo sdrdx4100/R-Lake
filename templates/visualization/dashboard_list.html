@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ダッシュボード一覧 - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3"><i class="fas fa-th-large me-2"></i>ダッシュボード一覧</h1>
+    <a href="{% url 'visualization:dashboard_create' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i>新規作成
+    </a>
+  </div>
+
+  <form method="get" class="mb-3">
+    <div class="input-group" style="max-width:480px;">
+      <input type="text" class="form-control" name="q" placeholder="名称や説明で検索" value="{{ request.GET.q }}">
+      <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+    </div>
+  </form>
+
+  {% if dashboards %}
+  <div class="row">
+    {% for d in dashboards %}
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ d.name }}</h5>
+          <p class="card-text text-muted small flex-grow-1">{{ d.description|default:"説明なし" }}</p>
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">更新: {{ d.updated_at|date:"Y/m/d H:i" }}</small>
+            <a href="{% url 'visualization:dashboard_detail' d.pk %}" class="btn btn-outline-primary btn-sm">開く</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+  <nav>
+    <ul class="pagination">
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q }}">前へ</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">前へ</span></li>
+      {% endif %}
+      <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q }}">次へ</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">次へ</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="alert alert-light">ダッシュボードがまだありません。右上の「新規作成」から追加できます。</div>
+  {% endif %}
+</div>
+{% endblock %}

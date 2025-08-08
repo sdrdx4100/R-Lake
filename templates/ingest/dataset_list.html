@@ -13,7 +13,7 @@
         <h1>
             <i class="fas fa-database me-2"></i>データセット一覧
         </h1>
-        <a href="{% url 'ingest:upload_csv' %}" class="btn btn-primary">
+    <a href="{% url 'ingest:upload_csv' %}" class="btn btn-primary btn-sm">
             <i class="fas fa-plus me-2"></i>新しいデータセット
         </a>
     </div>
@@ -63,15 +63,18 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var table = $('#datasetsTable');
-    if ($.fn.dataTable.isDataTable(table)) {
-        table.DataTable().clear().destroy();
-    }
-    table.DataTable({
-        language: {
-            url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
+    var $table = $('#datasetsTable');
+    try {
+        if ($table.length && $.fn && $.fn.dataTable) {
+            $table.DataTable({
+                destroy: true,      // 既存の初期化があれば安全に破棄
+                retrieve: true,     // 既存インスタンスがあればそれを再利用
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json' }
+            });
         }
-    });
+    } catch (e) {
+        console.warn('DataTables 初期化で問題が発生しましたが、素のテーブルで継続します。', e);
+    }
 });
 </script>
 {% endblock %}
