@@ -293,6 +293,13 @@ a:hover {
     text-decoration: underline;
 }
 
+/* ロゴ画像 */
+.navbar-logo {
+    height: 32px; /* ナビバーに収まる高さ */
+    width: auto;
+    display: block;
+}
+
 /* チャート関連 */
 .chart-container {
     background: var(--bg-white);

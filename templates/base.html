@@ -15,6 +15,9 @@
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     
     {% load static %}
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
     
     {% block extra_css %}{% endblock %}
@@ -23,8 +26,8 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="fas fa-database me-2"></i>R-Lake
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}" aria-label="R-Lake ホーム">
+                <img src="{% static 'img/r-lake-logo.png' %}" alt="R-Lake" class="navbar-logo"/>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
