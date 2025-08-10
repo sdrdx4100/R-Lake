@@ -8,6 +8,8 @@ from django.db import transaction
 from ingest.models import Dataset, DataSchema, RawDataFile, DataRecord, DataQualityReport
 import logging
 import chardet
+import csv
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -27,36 +29,130 @@ class CSVProcessor:
         }
     
     def detect_encoding(self, file_path: str) -> str:
-        """ファイルの文字エンコーディングを検出"""
+        """ファイルの文字エンコーディングを検出（BOM対応）"""
         try:
             with open(file_path, 'rb') as f:
-                raw_data = f.read(10000)  # 最初の10KB を読み取り
+                head = f.read(4)
+                # BOM チェック
+                if head.startswith(b'\xef\xbb\xbf'):
+                    return 'utf-8-sig'
+                f.seek(0)
+                raw_data = f.read(10000)
                 result = chardet.detect(raw_data)
-                return result['encoding'] if result['confidence'] > 0.7 else 'utf-8'
+                return result['encoding'] if result.get('confidence', 0) > 0.7 and result.get('encoding') else 'utf-8'
         except Exception as e:
             logger.warning(f"エンコーディング検出エラー: {e}")
             return 'utf-8'
     
-    def detect_delimiter(self, file_path: str, encoding: str = 'utf-8') -> str:
-        """CSVの区切り文字を検出"""
+    def detect_delimiter(self, file_path: str, encoding: str = 'utf-8', max_lines: int = 50) -> str:
+        """CSVの区切り文字を複数行から検出"""
+        candidates = [',', ';', '\t', '|']
+        counts = {d: 0 for d in candidates}
         try:
-            with open(file_path, 'r', encoding=encoding) as f:
-                first_line = f.readline()
-                
-            # 一般的な区切り文字を試す
-            delimiters = [',', ';', '\t', '|']
-            delimiter_counts = {}
-            
-            for delimiter in delimiters:
-                delimiter_counts[delimiter] = first_line.count(delimiter)
-            
-            # 最も多く使用されている区切り文字を返す
-            best_delimiter = max(delimiter_counts, key=delimiter_counts.get)
-            return best_delimiter if delimiter_counts[best_delimiter] > 0 else ','
-            
+            with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                for i, line in enumerate(f):
+                    if i >= max_lines:
+                        break
+                    if not line.strip():
+                        continue
+                    for d in candidates:
+                        c = self._safe_count_delims(line, d)
+                        # 0 は情報なしとして足さない
+                        if c > 0:
+                            counts[d] += c
+            # 最も総出現数が多い候補
+            best = max(counts, key=counts.get)
+            return best if counts[best] > 0 else ','
         except Exception as e:
             logger.warning(f"区切り文字検出エラー: {e}")
             return ','
+    
+    def _safe_count_delims(self, line: str, delim: str) -> int:
+        """引用符内の区切り文字を過剰カウントしない簡易カウント"""
+        count = 0
+        in_quote = False
+        for ch in line:
+            if ch == '"':
+                in_quote = not in_quote
+            elif ch == delim and not in_quote:
+                count += 1
+        return count
+
+    def detect_header_row(self, file_path: str, encoding: str, delimiter: str, max_scan_lines: int = 200) -> Tuple[int, Optional[List[str]]]:
+        """
+        ヘッダ行を自動検出し、その行番号とカラム名の候補を返す。
+        見つからない場合は (-1, None) を返す。
+        """
+        def is_numeric_like(s: str) -> bool:
+            s = s.strip()
+            if s == '' or s.lower() in {'nan', 'null', 'none'}:
+                return False
+            try:
+                float(s.replace(',', ''))
+                return True
+            except Exception:
+                return False
+
+        def tokenize(row: str) -> List[str]:
+            reader = csv.reader([row], delimiter=delimiter)
+            for r in reader:
+                return [t.strip().strip('"').strip("'") for t in r]
+            return []
+
+        lines: List[str] = []
+        try:
+            with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                for i, line in enumerate(f):
+                    if i >= max_scan_lines:
+                        break
+                    # 改行のみ/空白行はスキップ
+                    if not line or line.strip() == '':
+                        lines.append('')
+                    else:
+                        lines.append(line.rstrip('\n'))
+        except Exception as e:
+            logger.warning(f"ヘッダ検出のための読み込みに失敗: {e}")
+            return -1, None
+
+        # ヘッダ候補探索
+        for idx, line in enumerate(lines):
+            if not line:
+                continue
+            tokens = tokenize(line)
+            if len(tokens) < 2:
+                continue
+            token_count = len(tokens)
+            unique_ratio = len(set([t.lower() for t in tokens])) / token_count
+            non_numeric_ratio = sum(1 for t in tokens if not is_numeric_like(t)) / token_count
+            # 次のデータ行（非空）
+            next_tokens = None
+            for j in range(idx + 1, len(lines)):
+                if not lines[j]:
+                    continue
+                nt = tokenize(lines[j])
+                if len(nt) >= 1:
+                    next_tokens = nt
+                    break
+            same_len = (len(next_tokens) == token_count) if next_tokens else False
+            next_has_numeric = any(is_numeric_like(t) for t in (next_tokens or []))
+
+            # ヘッダっぽい条件
+            if unique_ratio >= 0.8 and non_numeric_ratio >= 0.6 and same_len:
+                # 列名として不適切な空文字は除外
+                col_names = [c if c != '' else f'col_{i+1}' for i, c in enumerate(tokens)]
+                # 重複列名のユニーク化
+                col_seen = {}
+                uniq_cols: List[str] = []
+                for c in col_names:
+                    base = re.sub(r'\s+', '_', c)
+                    if base in col_seen:
+                        col_seen[base] += 1
+                        uniq_cols.append(f"{base}_{col_seen[base]}")
+                    else:
+                        col_seen[base] = 1
+                        uniq_cols.append(base)
+                return idx, uniq_cols
+        return -1, None
     
     def infer_column_types(self, df: pd.DataFrame) -> Dict[str, str]:
         """データフレームからカラムの型を推論"""
@@ -146,6 +242,7 @@ class CSVProcessor:
     def process_csv(self, raw_file: RawDataFile, dataset: Dataset) -> Dict[str, Any]:
         """
         CSVファイルを処理してデータベースに保存
+        先頭の空行やメタデータ行を自動スキップし、ヘッダを認識します。
         """
         try:
             # エンコーディングと区切り文字の検出
@@ -153,12 +250,47 @@ class CSVProcessor:
             encoding = self.detect_encoding(file_path)
             delimiter = self.detect_delimiter(file_path, encoding)
             
+            # ヘッダ行検出
+            header_idx, header_cols = self.detect_header_row(file_path, encoding, delimiter)
+
             # CSVファイルの読み込み
-            df = pd.read_csv(file_path, encoding=encoding, delimiter=delimiter)
+            if header_idx >= 0 and header_cols:
+                # names を指定して、ヘッダ行は skiprows する
+                df = pd.read_csv(
+                    file_path,
+                    encoding=encoding,
+                    delimiter=delimiter,
+                    skiprows=header_idx + 1,
+                    names=header_cols,
+                    engine='python',
+                    on_bad_lines='skip'
+                )
+            else:
+                # フォールバック: pandas に任せる（空行は自動スキップ）
+                df = pd.read_csv(
+                    file_path,
+                    encoding=encoding,
+                    delimiter=delimiter,
+                    engine='python',
+                    on_bad_lines='skip'
+                )
             
             # 空のデータフレームチェック
             if df.empty:
                 raise ValidationError("CSVファイルにデータが含まれていません")
+            
+            # カラム名の正規化（空や重複が残っていればユニーク化）
+            col_seen = {}
+            new_cols: List[str] = []
+            for c in [str(x) for x in df.columns]:
+                base = re.sub(r'\s+', '_', c.strip()) or 'col'
+                if base in col_seen:
+                    col_seen[base] += 1
+                    new_cols.append(f"{base}_{col_seen[base]}")
+                else:
+                    col_seen[base] = 1
+                    new_cols.append(base)
+            df.columns = new_cols
             
             # カラム型の推論
             column_types = self.infer_column_types(df)
@@ -187,6 +319,9 @@ class CSVProcessor:
             records_to_create = []
             duplicate_count = 0
             error_count = 0
+            # バリデーションと重複検出の準備
+            validator = DataValidator()
+            seen_hashes: set[str] = set()
             
             for idx, row in df.iterrows():
                 try:
@@ -199,27 +334,39 @@ class CSVProcessor:
                         elif column_types[col] == 'DATETIME':
                             try:
                                 data[col] = pd.to_datetime(value).isoformat()
-                            except:
+                            except Exception:
                                 data[col] = str(value)
                         else:
                             data[col] = value
                     
+                    # レコードバリデーション
+                    is_valid, _errs = validator.validate_record(data, dataset)
+                    if not is_valid:
+                        error_count += 1
+                        continue
+                    
+                    # 重複検出（同一ファイル内／同一処理内）
                     data_hash = self.generate_data_hash(data)
+                    if data_hash in seen_hashes:
+                        duplicate_count += 1
+                        continue
+                    seen_hashes.add(data_hash)
                     
                     record = DataRecord(
                         dataset=dataset,
-                        row_number=idx + 1,
+                        row_number=int(idx) + 1,
                         data=data,
                         data_hash=data_hash
                     )
                     records_to_create.append(record)
                     
                 except Exception as e:
-                    logger.error(f"行 {idx + 1} の処理エラー: {e}")
+                    logger.error(f"行 {int(idx) + 1} の処理エラー: {e}")
                     error_count += 1
             
             # バルクインサート
-            DataRecord.objects.bulk_create(records_to_create, batch_size=1000)
+            if records_to_create:
+                DataRecord.objects.bulk_create(records_to_create, batch_size=1000)
             
             # データセット情報の更新
             dataset.total_rows = len(records_to_create)
@@ -236,12 +383,12 @@ class CSVProcessor:
             
             return {
                 'success': True,
-                'total_rows': len(df),
+                'total_rows': int(len(df)),
                 'processed_rows': len(records_to_create),
                 'error_rows': error_count,
                 'duplicate_rows': duplicate_count,
                 'columns': list(column_types.keys()),
-                'quality_score': quality_report.valid_records / quality_report.total_records * 100
+                'quality_score': (quality_report.valid_records / quality_report.total_records * 100) if quality_report.total_records else 0
             }
             
         except Exception as e:
@@ -255,7 +402,8 @@ class CSVProcessor:
                             error_count: int, duplicate_count: int) -> DataQualityReport:
         """データ品質レポートを作成"""
         total_records = len(df)
-        valid_records = total_records - error_count
+        # 無効行（バリデーションNG）と重複を除いた件数
+        valid_records = max(total_records - error_count - duplicate_count, 0)
         
         # 詳細な品質情報
         quality_details = {
@@ -267,7 +415,7 @@ class CSVProcessor:
         for column in df.columns:
             series = df[column]
             null_count = series.isnull().sum()
-            completeness = ((len(series) - null_count) / len(series)) * 100
+            completeness = ((len(series) - null_count) / len(series)) * 100 if len(series) else 0
             
             quality_details['column_quality'][column] = {
                 'completeness_percentage': completeness,

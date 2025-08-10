@@ -21,6 +21,6 @@ urlpatterns = [
     path('api/datasets/<int:dataset_id>/export/schema.csv', views.dataset_export_schema_csv, name='dataset_export_schema_csv'),
     path('api/datasets/<int:dataset_id>/export/sample.csv', views.dataset_export_sample_csv, name='dataset_export_sample_csv'),
 
-    # REST API
+    # REST API（router に Dataset/RawFile とジョブ関連アクションが含まれます）
     path('api/', include(router.urls)),
 ]

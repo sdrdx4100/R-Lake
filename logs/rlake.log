@@ -1,3 +1,6 @@
 アップロードエラー: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
 アップロードエラー: Reverse for 'dataset_detail' not found. 'dataset_detail' is not a valid view function or pattern name.
 グラフ作成エラー: Reverse for 'chart_detail' not found. 'chart_detail' is not a valid view function or pattern name.
+CSV処理エラー: 'utf-8' codec can't decode byte 0x83 in position 0: invalid start byte
+アップロード/前処理エラー（data.csv）: ["CSV処理中にエラーが発生しました: 'utf-8' codec can't decode byte 0x83 in position 0: invalid start byte"]
+アップロード/前処理エラー: UNIQUE constraint failed: ingest_preprocessjob.name

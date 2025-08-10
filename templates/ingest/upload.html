@@ -24,14 +24,18 @@
                         
                         <div class="mb-3">
                             <label for="file" class="form-label">CSVファイル <span class="text-danger">*</span></label>
-                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx,.xls" required>
-                            <div class="form-text">サポート形式: CSV, Excel (.xlsx, .xls)</div>
+                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx,.xls" multiple required>
+                            <div class="form-text">
+                                サポート形式: CSV, Excel (.xlsx, .xls)／複数選択可。<br>
+                                複数ファイルの場合は各ファイルごとに個別のデータセットを作成します。
+                                データセット名は「&lt;入力名&gt; - &lt;ファイル名(拡張子除く)&gt;」になります。
+                            </div>
                         </div>
                         
                         <div class="mb-3">
                             <label for="dataset_name" class="form-label">データセット名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="dataset_name" name="dataset_name" required>
-                            <div class="form-text">データセットを識別するための名前を入力してください</div>
+                            <div class="form-text">複数ファイル時は上記の規則で各データセット名が付与されます</div>
                         </div>
                         
                         <div class="mb-3">
@@ -58,8 +62,157 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="measurement_start" class="form-label">計測開始</label>
+                                    <input type="datetime-local" class="form-control" id="measurement_start" name="measurement_start">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="measurement_end" class="form-label">計測終了</label>
+                                    <input type="datetime-local" class="form-control" id="measurement_end" name="measurement_end">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h5>データセットメタデータ（任意）</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="tags" class="form-label">タグ</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" placeholder="例: gps, can, demo">
+                                    <div class="form-text">複数ある場合はカンマ区切りで入力</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="source" class="form-label">データソース</label>
+                                    <input type="text" class="form-control" id="source" name="source" placeholder="例: 実車計測、シミュレータ">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sensor_type" class="form-label">センサー種別</label>
+                                    <input type="text" class="form-control" id="sensor_type" name="sensor_type" placeholder="例: GPS, IMU, LiDAR">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="project" class="form-label">プロジェクト</label>
+                                    <input type="text" class="form-control" id="project" name="project" placeholder="例: R-Lake">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="license" class="form-label">ライセンス</label>
+                                    <input type="text" class="form-control" id="license" name="license" placeholder="例: Private, CC-BY-4.0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">補足</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="注意点や備考等"></textarea>
+                        </div>
+
+                        <hr>
+                        <h5>前処理（任意・オフライン対応）</h5>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="use_preprocess" name="use_preprocess">
+                            <label class="form-check-label" for="use_preprocess">前処理を適用する</label>
+                        </div>
+
+                        <div id="preprocess_section" class="border rounded p-3" style="display:none;">
+                            <div class="mb-3">
+                                <label class="form-label">ジョブの選択</label>
+                                <select class="form-select" id="pre_job_mode" name="pre_job_mode">
+                                    <option value="existing" selected>既存ジョブを選択</option>
+                                    <option value="new">新規ジョブを登録</option>
+                                </select>
+                            </div>
+
+                            <div id="pre_existing" class="mb-3">
+                                <label for="pre_job_id" class="form-label">既存ジョブ</label>
+                                <select class="form-select" id="pre_job_id" name="pre_job_id">
+                                    <option value="">選択してください</option>
+                                    {% for j in jobs %}
+                                    <option value="{{ j.id }}">{{ j.name }} ({{ j.job_type }})</option>
+                                    {% empty %}
+                                    <option value="">（有効なジョブがありません）</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">ジョブ名と種別で選択できます</div>
+                            </div>
+
+                            <div id="pre_new" class="mb-3" style="display:none;">
+                                <div class="mb-3">
+                                    <label for="pre_job_name" class="form-label">ジョブ名</label>
+                                    <input type="text" class="form-control" id="pre_job_name" name="pre_job_name" placeholder="例: CSVクレンジング">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="pre_job_desc" class="form-label">説明</label>
+                                    <textarea class="form-control" id="pre_job_desc" name="pre_job_desc" rows="2"></textarea>
+                                </div>
+
+                                <!-- ここからジョブ種別の切替 -->
+                                <div class="mb-3">
+                                    <label class="form-label" for="pre_job_type">ジョブ種別</label>
+                                    <select class="form-select" id="pre_job_type" name="pre_job_type">
+                                        <option value="notebook" selected>Notebook (.ipynb)</option>
+                                        <option value="python">Python スクリプト (.py)</option>
+                                    </select>
+                                </div>
+
+                                <div id="pre_job_nb_fields">
+                                    <div class="mb-3">
+                                        <label for="pre_job_notebook" class="form-label">Notebookファイル(.ipynb)</label>
+                                        <input type="file" class="form-control" id="pre_job_notebook" name="pre_job_notebook" accept=".ipynb">
+                                    </div>
+                                </div>
+
+                                <div id="pre_job_py_fields" style="display:none;">
+                                    <div class="mb-3">
+                                        <label for="pre_job_script" class="form-label">Python スクリプト(.py)</label>
+                                        <input type="file" class="form-control" id="pre_job_script" name="pre_job_script" accept=".py">
+                                        <div class="form-text">または下のスクリプトのパスを指定</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="pre_job_script_path" class="form-label">スクリプトのパス</label>
+                                        <input type="text" class="form-control" id="pre_job_script_path" name="pre_job_script_path" placeholder="例: w:\\workspace\\R-lake\\R-Lake\\job\\sample_cleaning.py">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="pre_job_entry_function" class="form-label">エントリ関数名</label>
+                                        <input type="text" class="form-control" id="pre_job_entry_function" name="pre_job_entry_function" value="process">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="pre_job_default_params" class="form-label">既定パラメータ(JSON)</label>
+                                    <textarea class="form-control" id="pre_job_default_params" name="pre_job_default_params" rows="3" placeholder='{"skip_rows":0}'></textarea>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="pre_job_run_params" class="form-label">実行パラメータ(JSON)</label>
+                                <textarea class="form-control" id="pre_job_run_params" name="pre_job_run_params" rows="3" placeholder='{"rename_map":{"TimeStamp":"timestamp"}}'></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="pre_output_dataset_name" class="form-label">出力データセット名</label>
+                                <input type="text" class="form-control" id="pre_output_dataset_name" name="pre_output_dataset_name" placeholder="未指定なら &lt;入力名&gt;_proc">
+                                <div class="form-text">複数ファイル時に未指定の場合は各入力名ごとに自動で「_proc」を付与します</div>
+                            </div>
+                        </div>
                         
-                        <div class="d-grid gap-2">
+                        <div class="d-grid gap-2 mt-3">
                             <button type="submit" class="btn btn-primary btn-lg">
                                 <i class="fas fa-upload me-2"></i>アップロード & 処理開始
                             </button>
@@ -103,4 +256,32 @@
         </div>
     </div>
 </div>
+
+<script>
+(function(){
+  const useSwitch = document.getElementById('use_preprocess');
+  const section = document.getElementById('preprocess_section');
+  const modeSel = document.getElementById('pre_job_mode');
+  const elExisting = document.getElementById('pre_existing');
+  const elNew = document.getElementById('pre_new');
+  const typeSel = document.getElementById('pre_job_type');
+  const nbFields = document.getElementById('pre_job_nb_fields');
+  const pyFields = document.getElementById('pre_job_py_fields');
+  function refresh(){
+    section.style.display = useSwitch.checked ? '' : 'none';
+    const isNew = modeSel.value === 'new';
+    elExisting.style.display = isNew ? 'none' : '';
+    elNew.style.display = isNew ? '' : 'none';
+    if (isNew) {
+      const t = typeSel.value || 'notebook';
+      nbFields.style.display = (t === 'notebook') ? '' : 'none';
+      pyFields.style.display = (t === 'python') ? '' : 'none';
+    }
+  }
+  useSwitch.addEventListener('change', refresh);
+  modeSel.addEventListener('change', refresh);
+  if (typeSel) typeSel.addEventListener('change', refresh);
+  refresh();
+})();
+</script>
 {% endblock %}

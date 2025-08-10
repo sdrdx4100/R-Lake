@@ -71,6 +71,7 @@ class DatasetSerializer(serializers.ModelSerializer):
     schema_fields = DataSchemaSerializer(many=True, read_only=True)
     latest_quality_report = serializers.SerializerMethodField()
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    tags_list = serializers.ListField(child=serializers.CharField(), source='tags_list', read_only=True)
     
     class Meta:
         model = Dataset
@@ -78,6 +79,8 @@ class DatasetSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'created_by', 'created_by_username',
             'created_at', 'updated_at', 'vehicle_model', 'measurement_date',
             'measurement_location', 'total_rows', 'is_active',
+            'tags', 'tags_list', 'source', 'sensor_type', 'project', 'license',
+            'measurement_start', 'measurement_end', 'notes',
             'schema_fields', 'latest_quality_report'
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'total_rows']
@@ -113,7 +116,9 @@ class DatasetCreateSerializer(serializers.ModelSerializer):
         model = Dataset
         fields = [
             'name', 'description', 'vehicle_model',
-            'measurement_date', 'measurement_location'
+            'measurement_date', 'measurement_location',
+            'tags', 'source', 'sensor_type', 'project', 'license',
+            'measurement_start', 'measurement_end', 'notes'
         ]
     
     def validate_name(self, value):

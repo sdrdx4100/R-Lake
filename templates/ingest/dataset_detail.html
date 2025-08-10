@@ -119,13 +119,11 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-car me-2"></i>車両メタデータ
                     </h5>
-                </div>
-                <div class="card-body schema-preview">
-                    <div class="mb-2 text-end">
+                    <div>
                         <a class="btn btn-outline-primary btn-sm me-2" href="{% url 'ingest:dataset_export_schema_csv' dataset.pk %}">
                             <i class="fas fa-file-csv me-1"></i>スキーマCSV
                         </a>
@@ -133,7 +131,9 @@
                             <i class="fas fa-file-csv me-1"></i>サンプルCSV
                         </a>
                     </div>
-                    <div class="row">
+                </div>
+                <div class="card-body schema-preview">
+                    <div class="row g-3">
                         {% if dataset.vehicle_model %}
                         <div class="col-md-4">
                             <strong>車両モデル:</strong><br>
@@ -150,6 +150,56 @@
                         <div class="col-md-4">
                             <strong>計測日時:</strong><br>
                             {{ dataset.measurement_date|date:"Y年m月d日 H:i" }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.measurement_start %}
+                        <div class="col-md-4">
+                            <strong>計測開始:</strong><br>
+                            {{ dataset.measurement_start|date:"Y年m月d日 H:i" }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.measurement_end %}
+                        <div class="col-md-4">
+                            <strong>計測終了:</strong><br>
+                            {{ dataset.measurement_end|date:"Y年m月d日 H:i" }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.source %}
+                        <div class="col-md-4">
+                            <strong>ソース:</strong><br>
+                            {{ dataset.source }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.sensor_type %}
+                        <div class="col-md-4">
+                            <strong>センサー:</strong><br>
+                            {{ dataset.sensor_type }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.project %}
+                        <div class="col-md-4">
+                            <strong>プロジェクト:</strong><br>
+                            {{ dataset.project }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.license %}
+                        <div class="col-md-4">
+                            <strong>ライセンス:</strong><br>
+                            {{ dataset.license }}
+                        </div>
+                        {% endif %}
+                        {% if dataset.tags_list %}
+                        <div class="col-12">
+                            <strong>タグ:</strong><br>
+                            {% for t in dataset.tags_list %}
+                                <span class="badge bg-secondary me-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if dataset.notes %}
+                        <div class="col-12">
+                            <strong>補足:</strong><br>
+                            <pre class="mb-0">{{ dataset.notes }}</pre>
                         </div>
                         {% endif %}
                     </div>

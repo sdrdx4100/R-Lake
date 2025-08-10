@@ -20,7 +20,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-light);
     color: var(--text-dark);
-    line-height: 1.6;
+    line-height: 1.5; /* 少しだけ行間を詰める */
 }
 
 /* ナビゲーションバー */
@@ -72,7 +72,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     box-shadow: var(--shadow-sm);
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem; /* 1rem -> 0.5rem */
     background-color: var(--bg-white);
     transition: box-shadow 0.2s ease;
 }
@@ -86,18 +86,18 @@ body {
     border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     color: var(--text-dark);
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem; /* 横も少しだけ縮小 */
     border-radius: 5px 5px 0 0;
 }
 
 .card-body {
-    padding: 0.75rem;
+    padding: 0.5rem; /* 0.75rem -> 0.5rem */
 }
 
 .card-footer {
     background-color: var(--bg-light);
     border-top: 1px solid var(--border-light);
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem; /* 0.5rem 1rem -> 0.5rem 0.75rem */
 }
 
 /* ボタン */
@@ -179,7 +179,7 @@ body {
     border-bottom: 2px solid var(--border-color);
     font-weight: 600;
     color: var(--text-dark);
-    padding: 0.875rem;
+    padding: 0.625rem;
     text-transform: uppercase;
     font-size: 0.85rem;
     letter-spacing: 0.5px;
@@ -194,7 +194,7 @@ body {
 }
 
 .table tbody td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     vertical-align: middle;
 }
 
@@ -204,6 +204,7 @@ body {
     border-radius: 4px;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    padding: 0.35rem 0.5rem;
 }
 
 .form-control:focus, .form-select:focus {
@@ -214,7 +215,7 @@ body {
 .form-label {
     font-weight: 600;
     color: var(--text-dark);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
 
 /* バッジ */
@@ -270,15 +271,15 @@ h1, h2, h3, h4, h5, h6 {
 
 h1 {
     border-bottom: 3px solid var(--primary-color);
-    padding-bottom: 0.75rem;
-    margin-bottom: 1.5rem;
-    font-size: 2rem;
+    padding-bottom: 0.5rem; /* 0.75rem -> 0.5rem */
+    margin-bottom: 1rem;   /* 1.5rem -> 1rem */
+    font-size: 1.6rem;     /* 2rem -> 1.6rem */
 }
 
 h2 {
     border-bottom: 2px solid var(--border-color);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1.25rem;
+    padding-bottom: 0.35rem; /* 0.5rem -> 0.35rem */
+    margin-bottom: 0.85rem;  /* 1.25rem -> 0.85rem */
 }
 
 /* リンク */
@@ -304,8 +305,8 @@ a:hover {
 .chart-container {
     background: var(--bg-white);
     border-radius: 6px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
 }
@@ -314,8 +315,8 @@ a:hover {
     background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
     color: white;
     border-radius: 6px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
 }
 
 /* jQuery UI との統合 */
@@ -341,7 +342,7 @@ a:hover {
 footer {
     background: linear-gradient(to bottom, var(--bg-white), var(--bg-light)) !important;
     border-top: 1px solid var(--border-color);
-    margin-top: 3rem;
+    margin-top: 2rem; /* 3rem -> 2rem */
 }
 
 /* ユーティリティクラス */
@@ -405,3 +406,95 @@ footer {
         border: 1px solid #000;
     }
 }
+
+/* ==== Compact Density Overrides (reduce excessive vertical whitespace) ==== */
+:root {
+    --density-scale: 0.85; /* 0.85 = 15% 圧縮 */
+}
+
+body {
+    line-height: 1.5; /* 少しだけ行間を詰める */
+}
+
+.card {
+    margin-bottom: 0.5rem; /* 1rem -> 0.5rem */
+}
+.card-header {
+    padding: 0.5rem 0.75rem; /* 横も少しだけ縮小 */
+}
+.card-body {
+    padding: 0.5rem; /* 0.75rem -> 0.5rem */
+}
+.card-footer {
+    padding: 0.5rem 0.75rem; /* 0.5rem 1rem -> 0.5rem 0.75rem */
+}
+/* フォーム内のユーティリティ余白を軽量化（カード内のみ影響） */
+.card .mb-3 { margin-bottom: 0.5rem !important; }
+
+/* 見出しの下余白を軽量化 */
+h1 {
+    padding-bottom: 0.5rem; /* 0.75rem -> 0.5rem */
+    margin-bottom: 1rem;   /* 1.5rem -> 1rem */
+    font-size: 1.6rem;     /* 2rem -> 1.6rem */
+}
+
+h2 {
+    padding-bottom: 0.35rem; /* 0.5rem -> 0.35rem */
+    margin-bottom: 0.85rem;  /* 1.25rem -> 0.85rem */
+}
+
+/* テーブルのセル余白を圧縮 */
+.table thead th { padding: 0.625rem; }
+.table tbody td { padding: 0.5rem; }
+
+/* 入力の高さを若干縮小 */
+.form-control, .form-select { padding: 0.35rem 0.5rem; }
+.form-label { margin-bottom: 0.35rem; }
+
+/* 区切り線の余白を短縮 */
+hr { margin: 0.75rem 0; }
+
+/* チャート・統計カードの内外余白を短縮 */
+.chart-container { padding: 0.75rem; margin-bottom: 1rem; }
+.dataset-stats { padding: 1rem; margin-bottom: 1rem; }
+
+/* フッターの上余白を短縮（縦長の抑制） */
+footer { margin-top: 2rem; }
+/* ==== Ultra Compact Overrides (さらに強めに詰める) ==== */
+body { line-height: 1.4; }
+
+/* ナビバーの縦余白をさらに縮小 */
+.navbar { padding: 0.35rem 0; }
+.navbar-nav .nav-link { padding: 0.2rem 0.45rem; }
+
+/* カード系 */
+.card { margin-bottom: 0.4rem; }
+.card-header { padding: 0.4rem 0.6rem; }
+.card-body { padding: 0.4rem; }
+.card-footer { padding: 0.4rem 0.6rem; }
+.card .mb-3 { margin-bottom: 0.4rem !important; }
+
+/* 見出し */
+h1 { padding-bottom: 0.4rem; margin-bottom: 0.75rem; font-size: 1.45rem; }
+h2 { padding-bottom: 0.3rem; margin-bottom: 0.6rem; }
+
+/* テーブル */
+.table thead th { padding: 0.5rem; }
+.table tbody td { padding: 0.4rem; }
+
+/* フォーム入力 */
+.form-control, .form-select { padding: 0.3rem 0.45rem; }
+.form-label { margin-bottom: 0.25rem; }
+
+/* 区切り線 */
+hr { margin: 0.5rem 0; }
+
+/* チャート・統計カード */
+.chart-container { padding: 0.6rem; margin-bottom: 0.75rem; }
+.dataset-stats { padding: 0.75rem; margin-bottom: 0.75rem; }
+
+/* アラートの高さを抑制 */
+.alert { padding: 0.5rem 0.75rem; }
+
+/* フッターの上余白をさらに短縮 */
+footer { margin-top: 1.5rem; }

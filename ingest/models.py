@@ -20,6 +20,16 @@ class Dataset(models.Model):
     measurement_date = models.DateTimeField(null=True, blank=True, verbose_name="計測日時")
     measurement_location = models.CharField(max_length=255, blank=True, verbose_name="計測場所")
     
+    # 追加メタデータ（検索に活用）
+    tags = models.CharField(max_length=255, blank=True, verbose_name="タグ（カンマ区切り）")
+    source = models.CharField(max_length=255, blank=True, verbose_name="データソース")
+    sensor_type = models.CharField(max_length=100, blank=True, verbose_name="センサー種別")
+    project = models.CharField(max_length=100, blank=True, verbose_name="プロジェクト")
+    license = models.CharField(max_length=100, blank=True, verbose_name="ライセンス")
+    measurement_start = models.DateTimeField(null=True, blank=True, verbose_name="計測開始日時")
+    measurement_end = models.DateTimeField(null=True, blank=True, verbose_name="計測終了日時")
+    notes = models.TextField(blank=True, verbose_name="補足")
+    
     # データ品質
     total_rows = models.IntegerField(default=0, verbose_name="総レコード数")
     is_active = models.BooleanField(default=True, verbose_name="アクティブ")
@@ -28,9 +38,25 @@ class Dataset(models.Model):
         verbose_name = "データセット"
         verbose_name_plural = "データセット"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['vehicle_model']),
+            models.Index(fields=['measurement_date']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['tags']),
+            models.Index(fields=['project']),
+        ]
     
     def __str__(self):
         return f"{self.name} ({self.total_rows} rows)"
+    
+    @property
+    def tags_list(self):
+        """カンマ区切りのタグを配列で返す"""
+        if not self.tags:
+            return []
+        return [t.strip() for t in self.tags.split(',') if t.strip()]
 
 
 class DataSchema(models.Model):
@@ -175,3 +201,71 @@ class DataQualityReport(models.Model):
     def __str__(self):
         quality_percentage = (self.valid_records / self.total_records * 100) if self.total_records > 0 else 0
         return f"{self.dataset.name} - 品質: {quality_percentage:.1f}%"
+
+
+# ここから前処理ジョブ管理
+class PreprocessJob(models.Model):
+    """Jupyter Notebook / Python スクリプトを使った前処理ジョブ定義"""
+    JOB_TYPES = (
+        ('notebook', 'Notebook'),
+        ('python', 'Python Script'),
+    )
+
+    name = models.CharField(max_length=200, unique=True, verbose_name="ジョブ名")
+    description = models.TextField(blank=True, verbose_name="説明")
+
+    # 種別
+    job_type = models.CharField(max_length=20, choices=JOB_TYPES, default='notebook', verbose_name="ジョブ種別")
+
+    # Notebook参照はファイルアップロードとパスの両対応
+    notebook_file = models.FileField(upload_to='notebooks/', null=True, blank=True, verbose_name="Notebookファイル")
+    notebook_path = models.CharField(max_length=500, blank=True, verbose_name="Notebookパス")
+
+    # Pythonスクリプト参照（段階導入: まずはCSVパスを返す関数に対応）
+    script_file = models.FileField(upload_to='scripts/', null=True, blank=True,
+                                   validators=[FileExtensionValidator(allowed_extensions=['py'])],
+                                   verbose_name="スクリプトファイル")
+    script_path = models.CharField(max_length=500, blank=True, verbose_name="スクリプトパス")
+    entry_function = models.CharField(max_length=100, default='process', verbose_name="エントリ関数名")
+
+    default_parameters = models.JSONField(default=dict, verbose_name="既定パラメータ")
+    is_active = models.BooleanField(default=True, verbose_name="アクティブ")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="作成者")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
+
+    class Meta:
+        verbose_name = "前処理ジョブ"
+        verbose_name_plural = "前処理ジョブ"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class JobRun(models.Model):
+    """ジョブの実行履歴（Notebook / Python 共通）"""
+    STATUS_CHOICES = [
+        ('PENDING', '待機中'),
+        ('RUNNING', '実行中'),
+        ('SUCCESS', '成功'),
+        ('FAILED', '失敗'),
+    ]
+
+    job = models.ForeignKey(PreprocessJob, on_delete=models.CASCADE, related_name='runs')
+    input_file = models.ForeignKey(RawDataFile, on_delete=models.CASCADE, related_name='job_runs')
+    # 出力として作られたデータセット（成功時に設定）
+    output_dataset = models.ForeignKey('Dataset', null=True, blank=True, on_delete=models.SET_NULL, related_name='source_job_runs')
+
+    parameters = models.JSONField(default=dict, verbose_name="実行パラメータ")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    log = models.TextField(blank=True, verbose_name="ログ")
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "ジョブ実行"
+        verbose_name_plural = "ジョブ実行"
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"{self.job.name} run {self.id} ({self.status})"
