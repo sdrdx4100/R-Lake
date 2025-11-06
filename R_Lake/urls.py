@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/viz/', include('visualization.urls', namespace='api_viz')),
     path('ingest/', include('ingest.urls', namespace='ingest')),
     path('visualization/', include('visualization.urls', namespace='visualization')),
+    path('catalog/', include('base.urls', namespace='catalog')),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('api-auth/', include('rest_framework.urls')),
 ]
