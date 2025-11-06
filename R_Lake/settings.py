@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'base.apps.BaseConfig',
     'rest_framework',            # 追加: DRF
     'corsheaders',               # 追加: CORS support

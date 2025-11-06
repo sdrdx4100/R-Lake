@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}データカタログ - R-Lake{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4">
+    <div>
+      <h1 class="mb-1">データカタログ</h1>
+      <p class="text-muted mb-0">R-Lake のデータバックボーンを横断的に可視化し、信頼性あるデータ活用を推進します。</p>
+    </div>
+    <div class="text-muted small">最終更新: {{ generated_at|date:"Y/m/d H:i" }}</div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-3 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted">管理アセット</div>
+          <div class="display-6 fw-bold">{{ metrics.asset_total|default:0 }}</div>
+          <div class="progress" role="progressbar" aria-label="品質スコア" aria-valuenow="{{ metrics.avg_quality|default_if_none:0 }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-success" style="width: {{ metrics.avg_quality|default_if_none:0 }}%"></div>
+          </div>
+          <small class="text-muted">平均品質スコア: {% if metrics.avg_quality is not None %}{{ metrics.avg_quality|floatformat:1 }}{% else %}-{% endif %}</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted">ドメイン</div>
+          <div class="display-6 fw-bold">{{ metrics.domain_total|default:0 }}</div>
+          <small class="text-muted">ガバナンスのための論理的分割</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted">ソースシステム</div>
+          <div class="display-6 fw-bold">{{ metrics.source_total|default:0 }}</div>
+          <small class="text-muted">連携済みの取り込み経路</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted">総レコード数</div>
+          <div class="display-6 fw-bold">{{ metrics.record_total|default:0|intcomma }}</div>
+          <small class="text-muted">データバックボーンが保持する最新レコード数</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-xl-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div><i class="fas fa-database me-1"></i>管理中のデータアセット</div>
+          <a href="{% url 'ingest:dataset_list' %}" class="btn btn-sm btn-outline-primary">データセット管理へ</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>アセット名</th>
+                <th>ドメイン</th>
+                <th>ソース</th>
+                <th class="text-end">レコード数</th>
+                <th class="text-end">品質スコア</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for asset in assets %}
+              <tr>
+                <td>
+                  <a href="{% url 'catalog:asset_detail' asset.slug %}" class="fw-semibold text-decoration-none">{{ asset.name }}</a>
+                  {% if asset.latest_metric %}<div class="text-muted small">最終検証: {{ asset.latest_metric|date:"Y/m/d H:i" }}</div>{% endif %}
+                </td>
+                <td>{% if asset.domain %}<a href="{% url 'catalog:domain_detail' asset.domain.slug %}">{{ asset.domain.name }}</a>{% else %}<span class="text-muted">未設定</span>{% endif %}</td>
+                <td>{% if asset.source %}<a href="{% url 'catalog:source_detail' asset.source.slug %}">{{ asset.source.name }}</a>{% else %}<span class="text-muted">未設定</span>{% endif %}</td>
+                <td class="text-end">{{ asset.record_count|default:0|intcomma }}</td>
+                <td class="text-end">{% if asset.quality_score is not None %}{{ asset.quality_score|floatformat:1 }}{% else %}-{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">まだ管理対象のデータアセットが登録されていません。</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header"><i class="fas fa-stream me-1"></i>ソース別集約</div>
+        <ul class="list-group list-group-flush">
+          {% for source in sources %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold"><a href="{% url 'catalog:source_detail' source.slug %}">{{ source.name }}</a></div>
+              <div class="text-muted small">{{ source.get_source_type_display }} / {{ source.ingestion_frequency|default:"頻度未登録" }}</div>
+            </div>
+            <span class="badge bg-primary rounded-pill">{{ source.asset_total }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">ソースがまだ登録されていません。</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="fas fa-clipboard-check me-1"></i>最近の品質レポート</div>
+        <ul class="list-group list-group-flush">
+          {% for metric in recent_metrics %}
+          <li class="list-group-item">
+            <div class="fw-semibold"><a href="{% url 'catalog:asset_detail' metric.asset.slug %}">{{ metric.asset.name }}</a></div>
+            <div class="text-muted small">{{ metric.metric_date|date:"Y/m/d H:i" }} / スコア {% if metric.quality_score is not None %}{{ metric.quality_score|floatformat:1 }}{% else %}-{% endif %}</div>
+            <div class="progress mt-2" style="height: 6px;">
+              <div class="progress-bar bg-success" style="width: {{ metric.completeness_percent|default:0 }}%"></div>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">品質レポートはまだ生成されていません。</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="fas fa-project-diagram me-1"></i>リネージネットワーク</div>
+        <div class="card-body">
+          {% if lineage_groups %}
+          <div class="d-flex flex-wrap gap-3">
+            {% for upstream, downstream_assets in lineage_groups.items %}
+            <div class="border rounded p-3 flex-fill" style="min-width: 240px;">
+              <div class="fw-semibold"><a class="text-decoration-none" href="{% url 'catalog:asset_detail' upstream.slug %}">{{ upstream.name }}</a></div>
+              <ul class="list-unstyled mb-0 small">
+                {% for downstream in downstream_assets %}
+                <li><i class="fas fa-arrow-right text-muted me-1"></i><a href="{% url 'catalog:asset_detail' downstream.slug %}">{{ downstream.name }}</a></li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">まだリネージ情報は登録されていません。アセット間の関係を定義すると、ここに可視化されます。</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

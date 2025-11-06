@@ -44,7 +44,10 @@
                             <li><a class="dropdown-item" href="{% url 'ingest:upload_csv' %}">CSV アップロード</a></li>
                         </ul>
                     </li>
-                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'catalog:overview' %}"><i class="fas fa-database me-1"></i>データカタログ</a>
+                    </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="vizDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-chart-line me-1"></i>可視化

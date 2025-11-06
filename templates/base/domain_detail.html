@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ domain.name }} - ドメイン詳細{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+    <div>
+      <h1 class="mb-1">{{ domain.name }}</h1>
+      <p class="text-muted mb-0">{{ domain.description|default:"このドメインの説明はまだ登録されていません。" }}</p>
+    </div>
+    <div class="text-end">
+      <span class="badge bg-info">重要度: {{ domain.get_criticality_display }}</span>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">責任者</div>
+        <div class="card-body">
+          <p class="mb-1"><strong>ビジネスオーナー:</strong> {{ domain.business_owner|default:"未登録" }}</p>
+          <p class="mb-1"><strong>データステュワード:</strong> {{ domain.data_steward|default:"未登録" }}</p>
+          <p class="mb-0"><strong>標準保持期間:</strong> {{ domain.default_retention_days }} 日</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">アセット一覧</div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>アセット名</th>
+                <th>ソース</th>
+                <th class="text-end">カラム数</th>
+                <th class="text-end">最新品質</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for asset in assets %}
+              <tr>
+                <td><a href="{% url 'catalog:asset_detail' asset.slug %}" class="fw-semibold text-decoration-none">{{ asset.name }}</a></td>
+                <td>{% if asset.source %}<a href="{% url 'catalog:source_detail' asset.source.slug %}">{{ asset.source.name }}</a>{% else %}<span class="text-muted">未設定</span>{% endif %}</td>
+                <td class="text-end">{{ asset.column_count }}</td>
+                <td class="text-end">{% if asset.latest_metric %}{{ asset.latest_metric|date:"Y/m/d" }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">このドメインに紐づくアセットはまだありません。</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header">契約集計</div>
+        <div class="card-body">
+          {% if active_contracts %}
+          <ul class="list-group list-group-flush">
+            {% for contract in active_contracts %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ contract.contracts__consumer_team|default:"未設定" }}</span>
+              <span class="badge bg-primary rounded-pill">{{ contract.contract_count }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">アクティブな契約はまだ登録されていません。</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header">関連ソース</div>
+        <div class="card-body">
+          {% if sources %}
+          <ul class="list-group list-group-flush">
+            {% for source in sources %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a href="{% url 'catalog:source_detail' source.slug %}" class="text-decoration-none">{{ source.name }}</a>
+              <span class="badge bg-secondary">{{ source.asset_count }}</span>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">ソースはまだ登録されていません。</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">ソースはまだ登録されていません。</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

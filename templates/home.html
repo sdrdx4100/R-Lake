@@ -14,6 +14,7 @@
     <div class="col-md-4 text-md-end mt-3 mt-md-0">
       <a href="{% url 'ingest:upload_csv' %}" class="btn btn-primary me-2"><i class="fas fa-upload me-1"></i>CSVアップロード</a>
       <a href="{% url 'visualization:dashboard_create' %}" class="btn btn-outline-primary"><i class="fas fa-columns me-1"></i>新規ダッシュボード</a>
+      <a href="{% url 'catalog:overview' %}" class="btn btn-outline-light ms-md-2"><i class="fas fa-database me-1"></i>データカタログ</a>
     </div>
   </div>
 
@@ -59,6 +60,9 @@
             </div>
             <div class="col-6 col-lg-3">
               <a class="btn w-100 btn-outline-primary" href="{% url 'visualization:dashboard_list' %}"><i class="fas fa-columns me-1"></i>ダッシュボード一覧</a>
+            </div>
+            <div class="col-6 col-lg-3">
+              <a class="btn w-100 btn-outline-primary" href="{% url 'catalog:overview' %}"><i class="fas fa-database me-1"></i>データカタログ</a>
             </div>
           </div>
         </div>
@@ -120,6 +124,69 @@
             </div>
           {% else %}
             <div class="text-muted">最近のダッシュボードはありません。</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-server me-2"></i>データバックボーン状況</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">管理アセット</span>
+            <span class="fw-bold">{{ backbone_summary.assets|default:0 }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">ドメイン</span>
+            <span class="fw-bold">{{ backbone_summary.domains|default:0 }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted">平均品質スコア</span>
+            <span class="fw-bold">{% if backbone_summary.average_quality is not None %}{{ backbone_summary.average_quality|floatformat:1 }}{% else %}-{% endif %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-clipboard-check me-2"></i>最新品質レポート</div>
+        <div class="card-body">
+          {% if recent_asset_metrics %}
+          <ul class="list-group list-group-flush">
+            {% for metric in recent_asset_metrics %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold"><a href="{% url 'catalog:asset_detail' metric.asset.slug %}">{{ metric.asset.name }}</a></div>
+                <div class="text-muted small">{{ metric.metric_date|date:"Y/m/d H:i" }}</div>
+              </div>
+              <span class="badge bg-success">{% if metric.quality_score is not None %}{{ metric.quality_score|floatformat:1 }}{% else %}-{% endif %}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">品質レポートはまだありません。</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-layer-group me-2"></i>注目ドメイン</div>
+        <div class="card-body">
+          {% if top_domains %}
+          <ul class="list-group list-group-flush">
+            {% for domain in top_domains %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a href="{% url 'catalog:domain_detail' domain.slug %}" class="text-decoration-none">{{ domain.name }}</a>
+              <span class="badge bg-primary">{{ domain.asset_total }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">ドメインが登録されていません。</p>
           {% endif %}
         </div>
       </div>
